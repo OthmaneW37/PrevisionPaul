@@ -11,7 +11,7 @@ donc son résultat peut être partagé sans exposer de données.
 Réutilise `data/config_pi.json` (mêmes clés serveur/base/auth ; la clé
 `requete_sql` n'est pas utilisée ici). Dépend de `pyodbc`.
 
-Lancement : python outils\explorer_base_pi.py
+Lancement : python outils/explorer_base_pi.py
 """
 
 import os
