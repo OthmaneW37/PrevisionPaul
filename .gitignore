@@ -1,0 +1,63 @@
+# =============================================================================
+#  .gitignore — PrevisionPaul
+#  RÈGLE D'OR : le CODE va sur GitHub, la DATA ne quitte JAMAIS la machine.
+#  Ventes, recettes chef, prix, marges, commandes clients = confidentiel.
+# =============================================================================
+
+# ── DONNÉES MÉTIER SENSIBLES (ne jamais publier) ─────────────────────────────
+/data/
+/donnees_ventes/
+/exports/
+/logs/
+/docs/
+/Recette + MP/
+recettes txt.txt
+benchmark_modeles.csv
+
+# Défense en profondeur : aucun format de données/recette ne doit passer,
+# où qu'il se trouve dans l'arborescence.
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.pdf
+*.docx
+*.doc
+*.TRT
+*.trt
+
+# ── SECRETS (mots de passe, tokens, clés) ────────────────────────────────────
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+config_alertes.json
+config_securite.json
+**/config_alertes.json
+**/config_securite.json
+
+# ── SAUVEGARDES ──────────────────────────────────────────────────────────────
+*.bak
+*.bak_*
+*.backup
+*~
+
+# ── ARTEFACTS PYTHON ─────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+env/
+
+# ── FICHIERS TEMPORAIRES OFFICE / OS ─────────────────────────────────────────
+~$*
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ── CLAUDE CODE (config personnelle, pas partagée) ───────────────────────────
+.claude/settings.local.json

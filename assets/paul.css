@@ -1,0 +1,56 @@
+/* Thème « maison PAUL » — noir espresso, crème/parchemin, or/laiton.
+   Auto-injecté par Dash (dossier assets/). */
+/* Polices auto-hébergées : voir polices_locales.css (aucun appel réseau). */
+
+body{margin:0;background:#f3ecdd;color:#2b2320;font-family:'Inter',system-ui,sans-serif;}
+*{box-sizing:border-box;}
+
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:#f3ecdd;}
+::-webkit-scrollbar-thumb{background:#cda85f;border-radius:6px;border:2px solid #f3ecdd;}
+
+.barre{background:linear-gradient(180deg,#241c16,#1c1714);padding:18px 30px;display:flex;
+       justify-content:space-between;align-items:center;border-bottom:3px solid #b8904a;}
+.marque{font-family:'Playfair Display',serif;font-weight:700;color:#fbf9f3;font-size:32px;
+        letter-spacing:10px;margin:0;padding-left:4px;}
+.tagline{color:#cda85f;font-size:10.5px;letter-spacing:3.5px;text-transform:uppercase;margin-top:4px;}
+
+.btn{font-family:'Inter',sans-serif;font-size:13px;font-weight:600;border-radius:9px;
+     padding:10px 18px;cursor:pointer;border:1px solid #b8904a;transition:all .15s;}
+.btn-or{background:#b8904a;color:#1c1714;}
+.btn-or:hover{background:#cda85f;}
+.btn-ghost{background:transparent;color:#cda85f;}
+.btn-ghost:hover{background:rgba(184,144,74,.15);}
+
+.corps{padding:22px 30px 44px;max-width:1180px;margin:0 auto;}
+.sous-titre{display:flex;justify-content:space-between;align-items:baseline;
+            border-bottom:1px solid #e6dcc7;padding-bottom:12px;margin-bottom:6px;}
+.sous-titre h3{font-family:'Playfair Display',serif;font-weight:600;color:#2b2320;margin:0;font-size:19px;}
+.maj{color:#8a7d6b;font-size:12px;font-style:italic;}
+.statut{color:#3d7a3d;min-height:18px;font-size:13px;margin:8px 0;font-weight:500;}
+
+.kpis{display:flex;gap:18px;flex-wrap:wrap;margin:18px 0 6px;}
+.kpi{background:#fbf9f3;border:1px solid #e6dcc7;border-radius:14px;padding:20px 24px;flex:1;
+     min-width:210px;box-shadow:0 2px 10px rgba(111,78,55,.06);transition:box-shadow .15s;}
+.kpi:hover{box-shadow:0 4px 18px rgba(111,78,55,.12);}
+
+.panneau{background:#fbf9f3;border:1px solid #e6dcc7;border-radius:14px;padding:14px 16px;
+         margin-top:18px;box-shadow:0 2px 10px rgba(111,78,55,.05);}
+.legende{color:#8a7d6b;font-size:12px;margin:14px 2px 2px;font-style:italic;}
+.vide{color:#8a7d6b;padding:30px;font-style:italic;}
+.lbl{display:block;color:#6f4e37;font-weight:600;font-size:12px;letter-spacing:1px;
+     text-transform:uppercase;margin:4px 4px 8px;}
+.texte-fiche{white-space:pre-wrap;font-family:'Courier New',monospace;font-size:12.5px;
+             color:#2b2320;background:#fbf9f3;padding:6px 8px;margin:0;line-height:1.5;}
+
+/* Onglets */
+.tab-parent .tab{background:transparent!important;border:none!important;
+                 border-bottom:2px solid transparent!important;color:#8a7d6b!important;}
+.tab-parent .tab--selected{border-bottom:3px solid #b8904a!important;color:#1c1714!important;
+                           font-weight:700!important;}
+
+/* Dropdowns (react-select) */
+.paul-dd .Select-control{border:1px solid #cda85f!important;background:#fff!important;border-radius:8px!important;}
+.paul-dd .Select-menu-outer{border:1px solid #cda85f!important;background:#fff!important;}
+.paul-dd .Select-value-label,.paul-dd .Select-placeholder{color:#2b2320!important;}
+.paul-dd .is-focused:not(.is-open)>.Select-control{box-shadow:0 0 0 2px rgba(184,144,74,.3)!important;}

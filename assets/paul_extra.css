@@ -1,0 +1,88 @@
+/* Compléments UX du tableau de bord PAUL (chargé explicitement via html.Link). */
+
+/* Polices de la maison : serif élégant pour les titres, sans lisible pour le corps */
+/* Polices auto-hébergées : voir polices_locales.css (aucun appel réseau). */
+
+html { -webkit-font-smoothing: antialiased; }
+
+/* Boutons de la barre supérieure */
+button { transition: all .15s ease; }
+button:hover { filter: brightness(1.12); transform: translateY(-1px); }
+button:active { transform: translateY(0); }
+
+/* Cartes KPI : léger relief au survol */
+.kpi-card { transition: box-shadow .15s ease, transform .15s ease; }
+.kpi-card:hover { box-shadow: 0 6px 18px rgba(111,78,55,.16) !important;
+                  transform: translateY(-2px); }
+
+/* Cartes de navigation de l'accueil */
+.nav-card {
+  background: #fbf9f3;
+  border: 1px solid #e6dcc7;
+  border-radius: 12px;
+  padding: 18px 20px;
+  cursor: pointer;
+  flex: 1;
+  min-width: 215px;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  box-shadow: 0 2px 8px rgba(28,23,20,.06);
+}
+.nav-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 18px rgba(184,144,74,.28);
+  border-color: #cda85f;
+}
+
+/* Bloc d'aide contextuelle (repliable) */
+details.aide {
+  background: #f7f1e3;
+  border: 1px dashed #cda85f;
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-bottom: 18px;
+}
+details.aide summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #6f4e37;
+  font-size: 13px;
+  outline: none;
+}
+details.aide summary:hover { color: #1c1714; }
+details.aide[open] summary { margin-bottom: 8px; }
+details.aide li { margin: 4px 0; color: #2b2320; font-size: 13px; line-height: 1.55; }
+
+/* Étapes « comment ça marche » */
+.flux-etape {
+  background: #fbf9f3;
+  border: 1px solid #e6dcc7;
+  border-radius: 10px;
+  padding: 12px 16px;
+  flex: 1;
+  min-width: 170px;
+  text-align: center;
+}
+.flux-chiffre { color: #b8904a; font-weight: 700; font-size: 12px; margin-top: 6px;
+                letter-spacing: .4px; }
+.flux-fleche { color: #b8904a; font-size: 22px; align-self: center; font-weight: 700; }
+
+/* Lignes d'alerte accueil */
+.alerte-ligne {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 8px 12px; border-bottom: 1px solid #efe7d4; font-size: 13px;
+}
+.alerte-ligne:last-child { border-bottom: none; }
+
+/* Tableaux : survol de ligne */
+.dash-table-container .dash-spreadsheet tr:hover td {
+  background-color: #f3ead6 !important;
+}
+
+/* Onglets */
+#tabs .tab:hover { color: #1c1714 !important; }
+
+/* Scrollbar assortie */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #f3ecdd; }
+::-webkit-scrollbar-thumb { background: #cda85f; border-radius: 6px;
+                            border: 2px solid #f3ecdd; }
