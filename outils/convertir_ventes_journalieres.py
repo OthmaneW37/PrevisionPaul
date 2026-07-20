@@ -150,6 +150,19 @@ def convertir():
         return None
 
     tout = pd.concat(morceaux, ignore_index=True)
+
+    # Re-fusionne les ventes issues de la base SQL d'Elyx (nouveau serveur) :
+    # pour les dates couvertes par SQL, ces lignes font foi (voir
+    # outils/exporter_ventes_sql.py) — sinon un rebuild depuis les .txt
+    # perdrait tout ce qui est postérieur à la migration.
+    chemin_sql = os.path.join(VENTES, "ventes_sql.csv")
+    if os.path.exists(chemin_sql):
+        df_sql = pd.read_csv(chemin_sql, sep=";", encoding="utf-8")
+        dates_sql = set(df_sql["Date"].astype(str))
+        tout = pd.concat([tout[~tout["Date"].astype(str).isin(dates_sql)], df_sql],
+                         ignore_index=True).sort_values(["Date", "Code"])
+        print(f"  + {len(df_sql)} lignes re-fusionnées depuis ventes_sql.csv (base Elyx)")
+
     tout.to_csv(SORTIE_GLOBALE, sep=";", index=False, encoding="utf-8")
     print(f"\n[OK] Consolidé : {len(tout):,} lignes -> {SORTIE_GLOBALE}".replace(",", " "))
     print(f"  Période     : {tout['Date'].min()} -> {tout['Date'].max()}")

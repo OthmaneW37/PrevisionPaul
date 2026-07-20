@@ -21,6 +21,8 @@ python -m paul_forecast.forecast_journalier    # DAILY forecast → exports/prev
 python -m pytest tests/ -q                     # run all tests
 python -m pytest tests/test_commandes.py::test_ajout_commande_journaliere -q   # single test
 python outils/convertir_ventes_journalieres.py # rebuild the daily sales CSV from the raw DOS export
+python outils/exporter_ventes_sql.py           # pull fresh sales from the Elyx SQL DB into the daily CSV
+python outils/mise_a_jour_quotidienne.py       # full nightly chain: SQL export → daily forecast → main.py
 ```
 
 There is no build step, linter config, or CI. Tests are plain `pytest` (no `pytest.ini`/`pyproject.toml`); `tests/conftest.py` just puts the repo root on `sys.path`.
@@ -53,6 +55,7 @@ Cross-cutting diagnostics: `suivi.py` (out-of-sample "prévu vs réel" reconstru
 - **Business data is externalized to `data/*.json`** (recipes `recettes_exactes.json`, prices `prix_matieres.json`, holidays `fetes_maroc.json`, events/matches `evenements.json`, client orders `commandes_clients.json`, per-product manual overrides `ajustements_produits.json`). Edit these instead of hardcoding. `config.py` loads them all.
 - **`config.py` is the central knobs file** — model selection, thresholds, service level, and **provisional calibrations** (e.g. `CALIBRAGE_MATIERES` scales flour ~×0.92 to match the chef's real consumption; this disappears once real recipes land).
 - **`ventes_journalieres.csv` is the source of truth for the daily side.** It's rebuilt from a fixed-width CP850 DOS "print-to-file" export by `outils/convertir_ventes_journalieres.py` (which also drops sub-total lines to avoid double counting). The monthly panel is auto-completed from this daily file for recent months missing from the xlsx.
+- **Automated sales export (server migration).** This machine (`ELYX-SERVER`) runs the PI ELECTRONIQUE back office (Elyx Resto 11.15.5) with SQL Server Express 2014, database `PAULCFC`. History up to the migration came from the OLD server (the `ProduitParJour*.txt` DOS reports); fresh sales will land in the `IMPUTATION_<site>` ticket-line tables once the tills are reconnected. `outils/exporter_ventes_sql.py` aggregates them per day × product (closed days only — today is excluded) and merges them into `ventes_journalieres.csv` (SQL rows replace same-date rows; the converter re-merges `donnees_ventes/ventes_sql.csv` on rebuild so nothing is lost). The Windows scheduled task **"PrevisionPaul - MAJ quotidienne"** (05:30 daily, S4U as Administrateur) runs `outils/mise_a_jour_quotidienne.py`: SQL export → daily forecast → `main.py`, logged to `logs/auto_AAAAMMJJ.log`. While the tills are not yet connected the export is a harmless no-op.
 - **Exports have a dual location — a known gotcha.** `pipeline.run()` writes into a dated subfolder `exports/AAAA-MM-JJ/`; the dashboard's `lire()` reads the **most recent dated** folder. But the daily forecast, `suivi`, and `couverture` write/read files at the **`exports/` root** (`previsions_journalieres.csv`, `suivi_prevu_reel.csv`). When adding a new export, be deliberate about which location the reader expects.
 
 ### Dashboard

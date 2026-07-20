@@ -247,7 +247,7 @@ def _prevoir_jours(s, jours, p, retour_base=False):
             annuel_ok = False
         else:
             f = ly.index.dayofweek.map(w).to_numpy(dtype=float)
-            f[f <= 0] = np.nan
+            f = np.where(f > 0, f, np.nan)   # pandas 3 : to_numpy() peut être en lecture seule
             annuel = np.nanmean(ly.to_numpy() / f) * g_yoy
             annuel_ok = bool(np.isfinite(annuel))
         if not np.isfinite(annuel):

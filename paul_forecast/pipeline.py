@@ -761,7 +761,9 @@ def run():
     produits_ok = []
     produits_echec = []
 
-    for prod in produits_uniques:
+    for i, prod in enumerate(produits_uniques, start=1):
+        if i % 100 == 0 or i == len(produits_uniques):
+            logger.info("[Prévision] %d/%d produits traités…", i, len(produits_uniques))
         df_prod = df_nettoye[df_nettoye[config.PRODUCT_COL] == prod].copy()
         try:
             df_agg, df_fc = _prevoir_un_produit(
