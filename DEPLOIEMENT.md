@@ -61,3 +61,16 @@ python dashboard.py
 ```
 
 → `http://127.0.0.1:8050`
+
+## Lanceur « double-clic » (utilisateur non technique)
+
+Pour ouvrir l'appli sans passer par la ligne de commande :
+
+1. Double-cliquer **une fois** sur `Creer_raccourci_bureau.bat` → crée l'icône
+   **« PAUL - Prévisions »** (logo PAUL) sur le Bureau.
+2. Ensuite, double-clic sur cette icône : une fenêtre démarre le serveur et le
+   navigateur s'ouvre tout seul sur le tableau de bord. Fermer la fenêtre = quitter.
+
+Détails pour l'utilisateur final : voir `OUVRIR_L_APPLICATION.txt`.
+Fichiers concernés : `Lancer_PAUL.bat` (serveur + ouverture navigateur),
+`outils/_ouvrir_navigateur.bat` (attend le port 8050), `assets/Logo_Paul.ico`.

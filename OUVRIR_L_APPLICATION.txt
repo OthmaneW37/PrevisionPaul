@@ -1,0 +1,30 @@
+╔══════════════════════════════════════════════════════════════╗
+║   PAUL — Comment ouvrir l'application des prévisions           ║
+╚══════════════════════════════════════════════════════════════╝
+
+▶ UTILISATION DE TOUS LES JOURS
+  1. Double-cliquez sur l'icône « PAUL - Prévisions » sur le Bureau.
+  2. Une fenêtre noire s'ouvre (c'est normal) et le navigateur
+     s'ouvre tout seul sur le tableau de bord après quelques secondes.
+  3. Utilisez l'application dans le navigateur.
+
+  ⚠  NE FERMEZ PAS la fenêtre noire tant que vous utilisez l'appli.
+     Pour QUITTER : fermez simplement la fenêtre noire.
+
+  Si le navigateur ne s'ouvre pas tout seul, tapez cette adresse
+  dans Chrome / Edge :   http://127.0.0.1:8050
+
+
+▶ PREMIÈRE FOIS SEULEMENT (pour créer l'icône du Bureau)
+  Double-cliquez une fois sur « Creer_raccourci_bureau.bat »
+  (dans le dossier du projet). L'icône « PAUL - Prévisions »
+  apparaît alors sur le Bureau. C'est à faire une seule fois.
+
+
+▶ EN CAS DE PROBLÈME
+  - « python n'est pas reconnu » : Python n'est pas installé ou pas
+    dans le PATH. Réinstallez-le depuis python.org en cochant
+    « Add python.exe to PATH ».
+  - La page ne s'affiche pas : patientez 10 s puis rafraîchissez.
+  - Rien ne se passe : lancez « Lancer_PAUL.bat » directement pour
+    voir le message d'erreur dans la fenêtre.
