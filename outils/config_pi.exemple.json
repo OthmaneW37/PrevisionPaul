@@ -1,0 +1,14 @@
+{
+  "_aide": "MODÈLE de config pour importer_ventes_pi.py. COPIER ce fichier vers data/config_pi.json (NON versionné) sur le serveur, puis remplir les vraies valeurs. La requête doit renvoyer EXACTEMENT les colonnes : Date, Code, Produit, Famille, Quantite, CA_TTC.",
+
+  "serveur": "localhost\\PIELECTRONIQUE",
+  "base": "RESTO",
+  "auth": "windows",
+  "utilisateur": "(seulement si auth != windows)",
+  "mot_de_passe": "(seulement si auth != windows)",
+  "pilote_odbc": "ODBC Driver 17 for SQL Server",
+  "timeout_s": 30,
+
+  "_note_requete": "EXEMPLE à adapter aux VRAIS noms de tables/vues (cf. Vues_Resto_11.15.5.sql). Les tickets sont dans imputation_x ; le référentiel article donne libellé + famille. WITH (NOLOCK) = zéro verrou sur la caisse.",
+  "requete_sql": "SELECT CONVERT(varchar(10), i.date_vente, 23) AS Date, a.code_article AS Code, a.libelle_article AS Produit, f.libelle_famille AS Famille, SUM(i.quantite) AS Quantite, SUM(i.montant_ttc) AS CA_TTC FROM imputation_x i WITH (NOLOCK) JOIN article a WITH (NOLOCK) ON a.code_article = i.code_article LEFT JOIN famille f WITH (NOLOCK) ON f.code_famille = a.famille GROUP BY CONVERT(varchar(10), i.date_vente, 23), a.code_article, a.libelle_article, f.libelle_famille"
+}
