@@ -452,18 +452,23 @@ def _exporter_besoins_par_categorie(df_besoins_detail, output_dir):
     """
     if df_besoins_detail is None or df_besoins_detail.empty:
         return
+    colonnes_seg = ["Date", "Ingredient", "Source_Couverture", "Quantite_Requise"]
     fam_maj = df_besoins_detail["Famille"].astype(str).str.strip().str.upper()
     for categorie in config.CATEGORIES_BESOINS:
+        nom = f"besoins_ingredients_{categorie.lower()}.csv"
         d = df_besoins_detail[fam_maj == categorie]
         if d.empty:
-            logger.info("[Besoins segmentés] %s : aucune ligne — fichier non écrit.",
-                        categorie)
+            # Catégorie sans besoin (ex. famille revendue) : on écrit tout de même
+            # un CSV VIDE pour ÉCRASER un éventuel fichier périmé d'un run précédent.
+            pd.DataFrame(columns=colonnes_seg).to_csv(
+                os.path.join(output_dir, nom), index=False, sep=";", encoding="utf-8")
+            logger.info("[Besoins segmentés] %s : aucune ligne (revendu/estimé) — "
+                        "CSV vidé.", categorie)
             continue
         agg = (d.groupby(["Date", "Ingredient", "Source_Couverture"], as_index=False)
                ["Quantite_Requise"].sum()
                .sort_values(["Date", "Quantite_Requise"], ascending=[True, False]))
         agg["Quantite_Requise"] = agg["Quantite_Requise"].round(2)
-        nom = f"besoins_ingredients_{categorie.lower()}.csv"
         agg.to_csv(os.path.join(output_dir, nom),
                    index=False, sep=";", encoding="utf-8")
         part_exacte = (d.loc[d["Source_Couverture"] == "recette_exacte",
