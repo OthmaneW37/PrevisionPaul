@@ -206,7 +206,10 @@ PROVENANCE_RECETTES = _charger_json("recettes_exactes_provenance.json", {})
 # Sources de provenance considérées comme EXACTES (validées chef / fiche technique).
 # Le reste (estimation logique, extrapolation, « à valider chef », détection par
 # motif, générique famille) est marqué « estimation » dans le bon de commande.
-SOURCES_RECETTE_EXACTE = {"fiche reelle", "recette chef"}
+SOURCES_RECETTE_EXACTE = {"fiche reelle", "recette chef",
+                          "tableau chefs (xlsx)",              # importer_recettes_chefs
+                          "fiches chef Maroc cuisine (xlsx)",  # importer_recettes_cuisine_maroc
+                          "fiches chef cuisine (xlsx p2)"}     # importer_recettes_cuisine_p2
 
 # Catégories du bon de commande segmenté (un fichier besoins_ingredients_<cat>.csv
 # par catégorie ; seule la boulangerie est aujourd'hui 100 % recettes exactes).

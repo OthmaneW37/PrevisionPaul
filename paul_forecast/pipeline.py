@@ -536,8 +536,12 @@ def _validation_terrain_matieres(df_besoins_mrp, output_dir, df_besoins_detail=N
             f.write("FIABILITÉ DU BON DE COMMANDE PAR CATÉGORIE\n")
             f.write("(part du besoin matières issue de recettes EXACTES — fiches chef)\n\n")
             for cat, pct in couv_cat.items():
-                repere = "recettes chef validées" if pct >= 95 else \
-                         "estimations — en attente des recettes chef"
+                if pct >= 95:
+                    repere = "recettes chef validées"
+                elif pct >= 60:
+                    repere = "majoritairement recettes chef — reste à compléter"
+                else:
+                    repere = "estimations — en attente des recettes chef"
                 f.write(f"  {cat:<14}: {pct:>5.0f} % exact  ({repere})\n")
             # Fiabilité globale : moyenne des % exacts pondérée par le poids
             # (quantité de matières) de chaque catégorie dans le bon de commande.
@@ -549,12 +553,15 @@ def _validation_terrain_matieres(df_besoins_mrp, output_dir, df_besoins_detail=N
                 glob = sum(couv_cat[c] * poids[c] for c in couv_cat) / tot_p
                 f.write(f"\n  FIABILITÉ GLOBALE DU BON DE COMMANDE : {glob:.0f} % "
                         f"(pondérée par le poids matières de chaque catégorie)\n")
-            autres = [c for c in couv_cat if c != "BOULANGERIE"]
-            if autres:
-                moy = sum(couv_cat[c] for c in autres) / len(autres)
-                f.write(f"\n  → Utiliser le fichier besoins_ingredients_boulangerie.csv "
-                        f"tel quel ;\n    {' + '.join(autres)} "
-                        f"({moy:.0f} % exact en moyenne) : chiffres indicatifs.\n")
+            fiables = [c for c in couv_cat if couv_cat[c] >= 60]
+            indicatifs = [c for c in couv_cat if couv_cat[c] < 60]
+            if fiables:
+                f.write(f"\n  → Fiables (≥60 % exact) : {' + '.join(fiables)} "
+                        f"— utilisables tels quels.\n")
+            if indicatifs:
+                moy = sum(couv_cat[c] for c in indicatifs) / len(indicatifs)
+                f.write(f"  → À compléter : {' + '.join(indicatifs)} "
+                        f"({moy:.0f} % exact en moyenne) — chiffres indicatifs.\n")
             f.write("\n")
         f.write("=" * 70 + "\n")
         f.write("Lecture : après calibrage, un mois NORMAL doit approcher 100% du\n")
