@@ -19,6 +19,14 @@ import os as _os, sys as _sys
 _RACINE = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
 _sys.path.insert(0, _RACINE)
 _os.chdir(_RACINE)
+# Console Windows au Maroc = souvent cp1256 (arabe) / cp850 : forcer UTF-8 pour ne
+# pas planter sur les accents français (« À », « é »…). errors='replace' = jamais
+# d'exception d'encodage, même si un caractère est hors table.
+for _flux in (_sys.stdout, _sys.stderr):
+    try:
+        _flux.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
 # ---------------------------------------------------------------------------------
 
 import os
