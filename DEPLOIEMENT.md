@@ -1,34 +1,37 @@
 # Déploiement — serveur PAUL (caisse PI Electronique)
 
 Procédure de mise en place et de mise à jour de PrevisionPaul sur le serveur de
-production (Windows Server, accès AnyDesk).
+production (`ELYX-SERVER`, Windows Server, accès AnyDesk).
 
 ## Principe
 
 - **Le code** vit sur GitHub → récupéré par `git clone` / `git pull`.
 - **Les données** (ventes, recettes, prix…) ne quittent jamais GitHub (cf. `.gitignore`) :
   elles restent sur le serveur, alimentées par la base SQL de la caisse.
+- **Emplacement de production : `C:\PrevisionPaul`** (chemin stable, hors profil
+  utilisateur — ne pas remettre dans `Downloads`/`Desktop`, fragiles). La tâche
+  planifiée et les scripts pointent tous vers ce dossier.
 
 ## Première installation
 
 ```cmd
-cd C:\Users\Administrateur\Desktop
+cd C:\
 git clone https://github.com/OthmaneW37/PrevisionPaul.git
 cd PrevisionPaul
 pip install -r requirements.txt
 ```
 
-Puis transférer une fois `data\` et `donnees_ventes\` via l'onglet fichiers d'AnyDesk,
-et tester :
+Puis transférer une fois `data\` et `donnees_ventes\` via l'onglet fichiers d'AnyDesk
+(ils sont hors git), et tester :
 
 ```cmd
 python main.py
 ```
 
-## Mise à jour (au quotidien)
+## Mise à jour du code
 
 ```cmd
-cd C:\Users\Administrateur\Desktop\PrevisionPaul
+cd C:\PrevisionPaul
 git pull
 ```
 
@@ -36,23 +39,57 @@ Le code se met à jour ; les données locales ne bougent pas.
 
 ## Export des ventes depuis la caisse PI (SQL Server)
 
-1. `pip install pyodbc` + installer « ODBC Driver 18 for SQL Server ».
-2. Copier `outils\config_pi.exemple.json` → `data\config_pi.json` (non versionné),
-   renseigner `serveur` / `base` / `auth`.
-3. Découvrir le schéma : `python outils\explorer_base_pi.py`
-4. Renseigner la vraie `requete_sql` (colonnes : `Date;Code;Produit;Famille;Quantite;CA_TTC`).
-5. Tester : `python outils\importer_ventes_pi.py` (lecture seule, défensif — n'écrase
-   jamais le CSV en cas d'échec).
+L'export est **déjà câblé et fonctionnel** via `outils/exporter_ventes_sql.py` :
 
-## Chaînage quotidien (à planifier via le Planificateur de tâches Windows)
+- instance locale `localhost\SQLEXPRESS2014`, base `PAULCFC`, **authentification
+  Windows** (aucun mot de passe stocké), pilote **« ODBC Driver 11 for SQL Server »**
+  (déjà installé sur le serveur) ;
+- lit les lignes de tickets des tables `IMPUTATION_<site>` (jours clos uniquement),
+  agrège par jour × article, et **fusionne par date** dans
+  `donnees_ventes\ventes_journalieres.csv` (l'historique des autres dates reste intact) ;
+- **défensif** : si la base ne renvoie rien (caisses pas encore raccordées) ou des
+  totaux aberrants, le CSV existant **n'est pas écrasé**. Tant que les tills ne
+  postent pas dans `IMPUTATION_*`, l'export est un no-op sans effet ni erreur.
+
+Rien à configurer. Pour changer d'instance/base ponctuellement, surcharger par
+variables d'environnement `PAUL_SQL_SERVEUR` / `PAUL_SQL_BASE`.
+
+Diagnostic du schéma (si le schéma Elyx change ou pour vérifier les tables/colonnes,
+lecture seule, n'affiche aucune donnée de vente) :
+
+```cmd
+python outils\explorer_base_pi.py
+```
+
+## Chaînage quotidien — tâche planifiée Windows
+
+Tâche **« PrevisionPaul - MAJ quotidienne »** (Planificateur de tâches Windows,
+chaque nuit **05:30**, S4U en tant qu'Administrateur) qui lance :
+
+```cmd
+python C:\PrevisionPaul\outils\mise_a_jour_quotidienne.py
+```
+
+Ce script enchaîne dans l'ordre, journalisé dans `logs\auto_AAAAMMJJ.log` :
 
 ```
-1. python outils\importer_ventes_pi.py        (ventes depuis la base)
-2. python -m paul_forecast.forecast_journalier (prévision du jour)
-3. python main.py                              (prévisions mensuelles + MRP)
+1. outils\exporter_ventes_sql.py            (ventes fraîches depuis la base Elyx)
+2. python -m paul_forecast.forecast_journalier  (prévision du jour)
+3. python main.py                           (prévisions mensuelles + MRP + plan)
 ```
 
-Lancer tôt le matin (après la RAZ de nuit de la caisse).
+C'est l'équivalent du bouton « Relancer le calcul » du dashboard, précédé de la
+récupération des ventes. Lancé tôt le matin, après la RAZ de nuit de la caisse.
+
+Vérifier / relancer manuellement la tâche :
+
+```powershell
+Get-ScheduledTaskInfo -TaskName "PrevisionPaul - MAJ quotidienne"   # dernier résultat, prochaine exécution
+Start-ScheduledTask     -TaskName "PrevisionPaul - MAJ quotidienne"  # forcer un run
+```
+
+> Après un déplacement du dossier, mettre à jour l'action de la tâche
+> (`Set-ScheduledTask`) : chemin du script **et** `WorkingDirectory`.
 
 ## Dashboard
 
