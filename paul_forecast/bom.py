@@ -50,14 +50,19 @@ def _sans_unite(nom):
 
 
 def _psf_canonique(nom):
-    """Retourne le nom canonique de PSF correspondant à un ingrédient, ou None."""
-    base = _canon_matiere(_sans_unite(nom))
-    if base in _PSF_ALIAS:
-        return _PSF_ALIAS[base]
-    if base in {_canon_matiere(k) for k in _PSF_RECETTES}:
-        for k in _PSF_RECETTES:
-            if _canon_matiere(k) == base:
-                return k
+    """Retourne le nom canonique de PSF correspondant à un ingrédient, ou None.
+
+    On tente deux formes : le nom sans son unité finale, puis le nom débarrassé
+    de TOUTE parenthèse (codes/marques internes comme « (TRA/BAS/APP/002) »), afin
+    qu'une préparation reste reconnue quelle que soit sa référence interne.
+    """
+    recettes_canon = {_canon_matiere(k): k for k in _PSF_RECETTES}
+    for candidat in (_sans_unite(nom), re.sub(r"\([^)]*\)", " ", str(nom))):
+        base = _canon_matiere(candidat)
+        if base in _PSF_ALIAS:
+            return _PSF_ALIAS[base]
+        if base in recettes_canon:
+            return recettes_canon[base]
     return None
 
 
