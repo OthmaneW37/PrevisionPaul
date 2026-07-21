@@ -145,15 +145,35 @@ def lire_recettes():
         poids = row[5] if len(row) > 5 else None
         lignes.append((recette, ingr, qte, unite, poids))
 
-    # échelle par recette : kg si l'unité « KG » y apparaît, sinon g
-    from collections import defaultdict
-    unites = defaultdict(set)
-    for rec, _, _, u, _ in lignes:
-        unites[rec].add(u)
+    # Échelle (kg vs g) de la colonne « Poids » : propre à chaque recette (l'auteur
+    # a travaillé soit en kg, soit en g). On la déduit de la MAJORITÉ des unités de
+    # poids de la recette (KG vs G), et non de la simple présence d'un « KG » : ainsi
+    # un typo isolé (« KG » au lieu de « G » sur la ciboulette de la Salade Caesar,
+    # qui faisait ×1000 toute la recette) reste minoritaire et sans effet.
+    #   - majorité d'unités KG  -> recette en kg (Omelette, Viande Hachée…) ;
+    #   - OU poids max < 1       -> forcément des kg (0.08, 0.16…), même si l'unité
+    #                               affichée est « G » (cas SW Poulet Pané : unités G
+    #                               mais poids réellement en kg).
+    # Un poids >= 1 avec majorité d'unités G reste donc en grammes (Caesar 80,
+    # Mini Croissant 25…), ce qui neutralise les typos d'unité isolés.
+    from collections import defaultdict, Counter
+    unites_rec = defaultdict(Counter)
+    poids_max_rec = defaultdict(float)
+    for rec, _, _, u, p in lignes:
+        if u in ("KG", "G"):
+            unites_rec[rec][u] += 1
+        try:
+            poids_max_rec[rec] = max(poids_max_rec[rec], float(str(p).replace(",", ".")))
+        except (ValueError, TypeError):
+            pass
+    echelle_kg_rec = {}
+    for rec in unites_rec:
+        c = unites_rec[rec]
+        echelle_kg_rec[rec] = (c["KG"] > c["G"]) or (0 < poids_max_rec[rec] < 1)
 
     recettes = {}
     for rec, ingr, qte, unite, poids in lignes:
-        echelle_kg = "KG" in unites[rec]
+        echelle_kg = echelle_kg_rec.get(rec, False)
         val = None
         if poids is not None and str(poids).strip() not in ("", "None"):
             try:
