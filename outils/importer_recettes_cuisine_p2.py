@@ -71,6 +71,25 @@ PLAN_VENDUS = {
     "croissantsaumonbenedicte":       ["Brioche saumon benedicte"],        # décision gérant
     "saucetigrequipleure":            ["Tigre qui pleure"],
     "carottesroties":                 ["Accompagnement carottes roties"],
+    # --- 3e vague (juillet 2026) ---
+    "minicroissantpdjenfant":         ["Mini croiss PDJ enfant"],
+    "croissantjambonfromage":         ["Croissant jambon from"],
+    "swthontresse":                   ["SW tresse au thon"],
+    "swpouletpanevae":                ["SW poulet pane VSP"],
+    "miniquichelorrainevae":          ["Mini quiche lorraine"],
+    "miniquichesaumonepinardsvae":    ["Mini quiche saumon epinards"],
+    "sandwichtomatemozzapesto":       ["Sandwich tomate mozzarella"],
+    "granolapassionframboise":        ["From BL granola passion framboise"],
+    "saladecaesarvsp":                ["Salade caesar"],
+    "sandwichledieppois":             ["Sandwich dieppois"],
+    "sandwichatlantiquevae":          ["SW atlantique (VSP)"],
+    "sandwichmontagnardvae":          ["SW montagnard (VSP)"],
+    "sandwichhotdog":                 ["SW hot dog", "Navette hot dog"],   # décision gérant
+    "chiapuddingfruitrouge":          ["Chia pudding pass framb"],         # décision gérant
+    "fromageblancgranola":            ["From BL granola miel"],            # décision gérant
+    "fromageblancnature":             ["From BL nature VSP"],
+    "jaouharasurplace":               ["Jawhara pistache"],                # décision gérant
+    "doubletartinepastrami":          ["Double tartine pastrami"],
 }
 
 # Recette -> sous-préparation (nom canonique en majuscules), pas un produit vendu.
@@ -84,6 +103,13 @@ PLAN_SOUS = {
     "rizalaciboulette":    "RIZ A LA CIBOULETTE",
     "crevettegrisepanee":  "CREVETTE GRISE PANEE",
     "pureealatruffe":      "PUREE A LA TRUFFE",
+    # --- 3e vague (juillet 2026) : sauces/bases des burgers & sandwichs ---
+    "saucetomate":         "SAUCE TOMATE",
+    "oignonscaramelises":  "OIGNONS CARAMELISES",
+    "oignonsfrits":        "OIGNONS FRITS",
+    "saucecheddar":        "SAUCE CHEDDAR",
+    "saucehollandaise":    "SAUCE HOLLANDAISE",
+    "appareilajaouhara":   "APPAREIL A JAOUHARA",
 }
 
 
