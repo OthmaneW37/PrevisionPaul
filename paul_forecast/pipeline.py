@@ -347,9 +347,16 @@ def _calculer_besoins_mrp(produits_uniques, dict_prevision_prod, produit_famille
     produit_famille = produit_famille or {}
     mod_prev_principal = "Prev_Prophet" if config.ACTIVER_PROPHET else "Prev_Selection"
     liste_besoins = []
-    nb_exact = nb_auto = nb_generique = nb_manquant = 0
+    nb_exact = nb_auto = nb_generique = nb_manquant = nb_revendu = 0
 
     for prod in produits_uniques:
+        # Familles achetées/revendues (ex. viennoiserie import) : produit fini,
+        # aucune matière première à commander -> exclu du MRP.
+        fam_prod_maj = str(produit_famille.get(prod, "")).strip().upper()
+        if fam_prod_maj in config.FAMILLES_REVENDUES:
+            nb_revendu += 1
+            continue
+
         recette_brute = config.BOM.get(prod)
         if recette_brute:
             nb_exact += 1
@@ -395,8 +402,8 @@ def _calculer_besoins_mrp(produits_uniques, dict_prevision_prod, produit_famille
                     "Source_Couverture": source_couv,
                 })
 
-    logger.info("[BOM] Exact=%d | Auto=%d | Générique=%d | Sans BOM=%d | Couverts=%d/%d",
-                nb_exact, nb_auto, nb_generique, nb_manquant,
+    logger.info("[BOM] Exact=%d | Auto=%d | Générique=%d | Sans BOM=%d | Revendu=%d | "
+                "Couverts=%d/%d", nb_exact, nb_auto, nb_generique, nb_manquant, nb_revendu,
                 nb_exact + nb_auto + nb_generique, len(produits_uniques))
 
     colonnes_detail = ["Date", "Famille", "Produit", "Ingredient",
@@ -543,6 +550,9 @@ def _validation_terrain_matieres(df_besoins_mrp, output_dir, df_besoins_detail=N
                 else:
                     repere = "estimations — en attente des recettes chef"
                 f.write(f"  {cat:<14}: {pct:>5.0f} % exact  ({repere})\n")
+            for fam in sorted(config.FAMILLES_REVENDUES):
+                f.write(f"  {fam:<14}:   revendu  (produits achetés — hors bon "
+                        f"de commande matières)\n")
             # Fiabilité globale : moyenne des % exacts pondérée par le poids
             # (quantité de matières) de chaque catégorie dans le bon de commande.
             fam_maj = df_besoins_detail["Famille"].astype(str).str.strip().str.upper()

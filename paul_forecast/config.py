@@ -215,6 +215,15 @@ SOURCES_RECETTE_EXACTE = {"fiche reelle", "recette chef",
 # par catégorie ; seule la boulangerie est aujourd'hui 100 % recettes exactes).
 CATEGORIES_BESOINS = ["BOULANGERIE", "CUISINE", "PATISSERIE", "VIENNOISERIE"]
 
+# Familles ACHETÉES / REVENDUES telles quelles (produits finis livrés, pas
+# fabriqués sur place) : pas de recette matière première, exclues du bon de
+# commande matières et de l'indicateur de fiabilité (elles ne sont pas un
+# « trou » à combler). Ex. la viennoiserie PAUL Maroc est surtout de l'import.
+# Éditable sans toucher au code via data/familles_revendues.json.
+FAMILLES_REVENDUES = {str(f).strip().upper()
+                      for f in _charger_json("familles_revendues.json",
+                                             ["VIENNOISERIE"])}
+
 # Modèle de prévision retenu PAR PRODUIT (banc d'essai walk-forward).
 # Nom du modèle gagnant (ETS, Theta, ARIMA, SeasonalNaive, MoyenneMobile,
 # Moyenne, Croston, Ensemble). Produits absents → défaut Holt-Winters.
