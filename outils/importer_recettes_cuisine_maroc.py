@@ -50,11 +50,13 @@ import shutil
 import unicodedata
 from datetime import datetime
 
+import pandas as pd
 from openpyxl import load_workbook
 
 XLSX = os.path.join(_RACINE, "docs", "Recettes_PAUL_Cuisine.xlsx")
 RECETTES_JSON = os.path.join(_RACINE, "data", "recettes_exactes.json")
 PROVENANCE_JSON = os.path.join(_RACINE, "data", "recettes_exactes_provenance.json")
+VENTES = os.path.join(_RACINE, "donnees_ventes", "ventes_journalieres.csv")
 
 # (facteur vers l'unité de base, unité de base) — identique à importer_recettes_chefs.
 CONVERSIONS = {"g": (1, "g"), "kg": (1000, "g"),
@@ -233,9 +235,24 @@ def lire_fiche(ws):
     return recette, sauce, anomalies
 
 
+def _index_ventes():
+    """Nom normalisé -> nom EXACT du produit dans les ventes (casse d'origine).
+
+    Indispensable : le pipeline retrouve la recette par match EXACT sur le nom
+    de produit ; une clé mal cassée (« CREPE JAM FROM VSP » au lieu de
+    « Crepe Jam FROM VSP ») serait ignorée.
+    """
+    df = pd.read_csv(VENTES, sep=";", encoding="utf-8")
+    idx = {}
+    for nom in df["Produit"].dropna().astype(str).unique():
+        idx.setdefault(_norm(nom), nom)
+    return idx
+
+
 def construire(chemin_xlsx=XLSX):
     """Lit tout le classeur -> (recettes {produit: {ing: qté}}, anomalies, notes)."""
     wb = load_workbook(chemin_xlsx, data_only=True)
+    idx = _index_ventes()
     recettes, anomalies, notes = {}, [], []
 
     # produits vendus
@@ -250,7 +267,8 @@ def construire(chemin_xlsx=XLSX):
             anomalies.append(f"« {nom_fiche} » : aucun ingrédient exploitable -> non importé.")
             continue
         for cible in cibles:
-            recettes[cible] = dict(rec)
+            nom_exact = idx.get(_norm(cible), cible)   # casse réelle des ventes
+            recettes[nom_exact] = dict(rec)
         if len(cibles) > 1:
             notes.append(f"« {nom_fiche} » appliquée à {cibles} (mêmes quantités ; "
                          f"affiner les portions PM si besoin).")
