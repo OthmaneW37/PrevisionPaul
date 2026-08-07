@@ -1,0 +1,41 @@
+\clearpage
+\chapter*{Conclusion générale}
+\phantomsection
+\addcontentsline{toc}{chapter}{Conclusion générale}
+\markboth{Conclusion générale}{Conclusion générale}
+\vspace{-1\baselineskip}
+{\setstretch{1.40}
+
+L'objectif de ce projet était de transformer un historique de ventes hétérogène en
+un outil local capable d'aider concrètement les équipes de PAUL Maroc à décider
+quoi produire et quoi commander. Pour atteindre cet objectif, nous avons construit
+une chaîne complète qui consolide les ventes journalières et mensuelles, compare
+dix candidats de prévision selon le produit, réconcilie les résultats avec un
+niveau global, intègre les fêtes marocaines, les matchs, les événements et les
+commandes clients, puis convertit les quantités recommandées en besoins de matières
+premières grâce aux recettes et aux produits semi-finis. Le résultat prend la
+forme de plans quotidien et mensuel sécurisés, d'un bon de commande,
+d'indicateurs de coût et d'une interface accessible. La version étudiée
+traite 373\,875 lignes de ventes, couvre plus de mille produits, sélectionne un
+modèle pour 848 références et calcule 236 ingrédients distincts. La validation
+mensuelle glissante obtient un WAPE de 8,25\,\% sur les quantités agrégées avec
+Holt--Winters, tandis que les 86 tests automatisés réussissent sur le dernier
+commit synchronisé. Ces résultats montrent que l'architecture répond aux besoins
+fondamentaux de reproductibilité, de traçabilité et de confidentialité. Ils doivent
+cependant être interprétés avec esprit critique. La précision journalière se
+dégrade sur la longue traîne et la fenêtre récente révèle une sous-prévision
+globale ; les ventes disponibles lors de l'audit s'arrêtent au 28 juin 2026 ; une
+partie des recettes et des prix reste estimée ; enfin, le food-cost calculé ne
+comprend pas encore toutes les charges. Le dashboard rend ces limites visibles
+afin que l'utilisateur ne confonde pas une recommandation avec une certitude. Les
+prochaines améliorations devraient donc porter en priorité sur l'alimentation SQL
+continue, la validation systématique des recettes par le chef, l'intégration des
+stocks réels et des délais fournisseurs, le suivi de la casse et des invendus, et
+la mise en place d'alertes lorsque le biais dépasse un seuil. Une évolution vers
+un stockage relationnel des configurations et des historiques d'exécution
+faciliterait également le multi-site et la gestion des droits. Enfin, un modèle
+local de langage pourrait enrichir l'assistant en langage naturel, à condition de
+conserver les outils déterministes comme seule source de chiffres et de ne jamais
+faire sortir les données de l'entreprise. Ce projet nous a permis d'articuler
+ingénierie logicielle, données, séries temporelles et contraintes opérationnelles.
+\par}

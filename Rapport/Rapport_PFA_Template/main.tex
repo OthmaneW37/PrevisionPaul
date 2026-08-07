@@ -1,0 +1,310 @@
+\documentclass[12pt,a4paper,oneside]{report}
+
+% -----------------------------------------------------------------------------
+% Encodage, langue et typographie — conforme au guide 4 IIR
+% -----------------------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{mathptmx}
+\usepackage{microtype}
+\usepackage{setspace}
+\usepackage{geometry}
+\geometry{top=2.5cm,bottom=2.5cm,left=2.5cm,right=2.5cm}
+\onehalfspacing
+\setlength{\parindent}{0.8cm}
+\setlength{\parskip}{6pt}
+\setlength{\headheight}{15pt}
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=10000
+
+% -----------------------------------------------------------------------------
+% Figures, tableaux et diagrammes
+% -----------------------------------------------------------------------------
+\usepackage{graphicx}
+\graphicspath{{img/}}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{caption}
+\usepackage{subcaption}
+\captionsetup{font=small,labelfont=bf,justification=centering}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\renewcommand{\arraystretch}{1.25}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc,backgrounds}
+
+% -----------------------------------------------------------------------------
+% Mise en forme héritée de l'ancien rapport LaTeX
+% -----------------------------------------------------------------------------
+\usepackage{xcolor}
+\definecolor{paulGold}{HTML}{B8904A}
+\definecolor{paulBrown}{HTML}{261C17}
+\definecolor{paulCream}{HTML}{F5EEDD}
+\definecolor{softGray}{HTML}{F2F2F2}
+\definecolor{alertRed}{HTML}{A8432F}
+\definecolor{okGreen}{HTML}{3D7A3D}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Projet de fin d'année — 4 IIR}
+\fancyhead[R]{\nouppercase{\leftmark}}
+\fancyfoot[L]{PrevisionPaul}
+\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0.6pt}
+\renewcommand{\footrulewidth}{0.6pt}
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \fancyfoot[L]{PrevisionPaul}
+  \fancyfoot[R]{\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0.6pt}}
+
+\usepackage{titlesec}
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{0.8em}{}
+\titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection}{0.8em}{}
+\titlespacing*{\section}{0pt}{18pt}{8pt}
+\titlespacing*{\subsection}{0pt}{14pt}{6pt}
+\titlespacing*{\subsubsection}{0pt}{12pt}{4pt}
+
+\usepackage[most]{tcolorbox}
+\newtcolorbox{objectifbox}{
+  colback=paulCream,colframe=paulGold,boxrule=0.8pt,
+  arc=1mm,left=5mm,right=5mm,top=3mm,bottom=3mm,
+  title=Objectifs du chapitre,fonttitle=\bfseries,coltitle=paulBrown}
+\newtcolorbox{resultatbox}[1][]{
+  colback=softGray,colframe=paulBrown,boxrule=0.6pt,
+  arc=1mm,left=5mm,right=5mm,top=3mm,bottom=3mm,#1}
+\newtcolorbox{attentionbox}{
+  colback=white,colframe=alertRed,boxrule=0.8pt,
+  arc=1mm,left=5mm,right=5mm,top=3mm,bottom=3mm,
+  title=Point de vigilance,fonttitle=\bfseries,coltitle=alertRed}
+
+\usepackage{enumitem}
+\setlist[itemize]{leftmargin=1.2cm,label=--,itemsep=3pt,topsep=4pt}
+\setlist[enumerate]{leftmargin=1.2cm,itemsep=3pt,topsep=4pt}
+
+\usepackage{listings}
+\lstdefinestyle{paulpython}{
+  language=Python,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{paulBrown}\bfseries,
+  commentstyle=\color{okGreen},
+  stringstyle=\color{alertRed},
+  backgroundcolor=\color{softGray},
+  frame=single,rulecolor=\color{paulGold},
+  breaklines=true,showstringspaces=false,
+  numbers=left,numberstyle=\tiny\color{gray},
+  xleftmargin=1em,framexleftmargin=0.8em}
+
+\usepackage{amsmath}
+\usepackage{url}
+\usepackage[hidelinks,unicode]{hyperref}
+\hypersetup{
+  pdftitle={PrevisionPaul — Intelligence artificielle pour la prévision des ventes et la planification des approvisionnements},
+  pdfauthor={Othmane Moussawi},
+  pdfsubject={Projet de fin d'année — 4 IIR},
+  bookmarksopen=true}
+
+% -----------------------------------------------------------------------------
+% Informations personnalisables
+% -----------------------------------------------------------------------------
+\newcommand{\TitreRapport}{Conception et développement d'un système intelligent de prévision des ventes par intelligence artificielle et de planification des approvisionnements pour PAUL Maroc}
+\newcommand{\NomProjet}{PrevisionPaul}
+\newcommand{\AuteurRapport}{Othmane Moussawi}
+\newcommand{\EncadrantProfessionnel}{M. Hamza El Hajjar}
+\newcommand{\EncadrantPedagogique}{Mme Amal Asselman}
+\newcommand{\OrganismeAccueil}{PAUL Maroc}
+\newcommand{\AnneeUniversitaire}{2025--2026}
+
+% Page de chapitre inspirée du modèle LaTeX d'origine : titre centré entre deux filets.
+\newcommand{\chapitrepage}[1]{%
+  \clearpage
+  \refstepcounter{chapter}
+  \phantomsection
+  \addcontentsline{toc}{chapter}{Chapitre \thechapter{} : #1}
+  \markboth{Chapitre \thechapter{} — #1}{Chapitre \thechapter{} — #1}
+  \thispagestyle{empty}
+  \vspace*{3.2cm}
+  \begin{center}
+    {\LARGE\bfseries Chapitre \thechapter\par}
+    \vspace{1cm}
+    {\color{paulGold}\rule{\textwidth}{1pt}}\\[1.2cm]
+    {\Huge\bfseries #1\par}
+    \vspace{1.2cm}
+    {\color{paulGold}\rule{\textwidth}{1pt}}
+  \end{center}
+  \vfill
+  \begin{center}\color{gray}\NomProjet\end{center}
+  \clearpage}
+
+\begin{document}
+\hypersetup{pageanchor=false}
+
+% -----------------------------------------------------------------------------
+% Page de garde
+% -----------------------------------------------------------------------------
+\begin{titlepage}
+  \centering
+  \begin{minipage}{0.62\textwidth}
+    \centering\includegraphics[width=0.82\linewidth]{logo-emsi.png}
+  \end{minipage}\hfill
+  \begin{minipage}{0.25\textwidth}
+    \centering\includegraphics[width=0.95\linewidth]{Logo_Paul.png}
+  \end{minipage}
+
+  \vspace{1.1cm}
+  {\scshape\Large École Marocaine des Sciences de l'Ingénieur — Casablanca\par}
+  \vspace{0.45cm}
+  {\large 4\textsuperscript{e} année en Ingénierie Informatique et Réseaux\par}
+  \vspace{1.2cm}
+  {\LARGE\bfseries Projet de fin d'année\par}
+  \vspace{0.6cm}
+  {\color{paulGold}\rule{\textwidth}{1pt}}\\[0.75cm]
+  {\LARGE\bfseries \TitreRapport\par}
+  \vspace{0.75cm}
+  {\color{paulGold}\rule{\textwidth}{1pt}}
+
+  \vfill
+  \begin{minipage}[t]{0.48\textwidth}
+    \raggedright
+    {\large\bfseries Réalisé par :}\\[0.25cm]
+    \AuteurRapport\\[0.8cm]
+    {\large\bfseries Au sein de :}\\[0.25cm]
+    \OrganismeAccueil
+  \end{minipage}
+  \hfill
+  \begin{minipage}[t]{0.48\textwidth}
+    \raggedleft
+    {\large\bfseries Encadrant professionnel :}\\[0.25cm]
+    \EncadrantProfessionnel\\[0.8cm]
+    {\large\bfseries Encadrant pédagogique :}\\[0.25cm]
+    \EncadrantPedagogique
+  \end{minipage}
+
+  \vfill
+  {\large Année universitaire : \AnneeUniversitaire\par}
+\end{titlepage}
+
+\hypersetup{pageanchor=true}
+\pagenumbering{Roman}
+
+\chapter*{Dédicaces}
+\thispagestyle{plain}
+\vspace*{2cm}
+\begin{flushright}
+\begin{minipage}{0.72\textwidth}
+\itshape
+À ma famille, pour son soutien constant, sa patience et la confiance qu'elle
+m'a accordée tout au long de mon parcours. À toutes les personnes qui m'ont
+encouragé à transformer une problématique métier concrète en une solution utile,
+fiable et durable. Ce travail leur est dédié avec gratitude.
+\end{minipage}
+\end{flushright}
+
+\clearpage
+\chapter*{Remerciements}
+\thispagestyle{plain}
+Nous remercions sincèrement nos encadrants professionnel et pédagogique pour
+leur disponibilité, leurs orientations et les retours qui ont guidé la conduite
+de ce projet. Nous exprimons également notre reconnaissance aux responsables et
+aux équipes opérationnelles de \OrganismeAccueil, qui ont partagé leurs besoins,
+leurs contraintes de production et les données nécessaires à la compréhension du
+processus existant. Enfin, nous remercions le corps professoral de l'École
+Marocaine des Sciences de l'Ingénieur pour les connaissances techniques et
+méthodologiques acquises durant notre formation. Ces contributions ont permis de
+confronter la solution à un contexte réel et d'en améliorer progressivement la
+pertinence.
+
+\clearpage
+\chapter*{Résumé}
+\addcontentsline{toc}{chapter}{Résumé}
+Ce rapport présente la conception et la réalisation de \NomProjet, un système
+interne destiné à prévoir les ventes d'un point de vente PAUL et à transformer
+ces prévisions en décisions opérationnelles de production et
+d'approvisionnement. Il s'agit d'un projet d'intelligence artificielle appliquée
+aux séries temporelles : la solution combine des modèles statistiques, un modèle
+d'apprentissage automatique global et une sélection automatisée du meilleur
+modèle pour chaque produit. Elle exploite 373,875 lignes de ventes journalières
+couvrant la période du 7 juillet 2021 au 28 juin 2026. Elle associe un moteur
+mensuel, qui compare dix candidats de prévision produit par produit, à un moteur
+journalier sensible au jour de la semaine, aux changements de niveau, aux fêtes
+marocaines, aux matchs, aux événements et aux commandes clients connues.
+
+Les volumes prévus sont ensuite rapprochés des recettes et des sous-recettes afin
+d'estimer les besoins en matières premières, les coûts matière et une quantité
+recommandée intégrant un niveau de service de 95\,\%. Un tableau de bord Dash
+regroupe la production du jour et du mois, les besoins matières, les événements,
+les commandes, l'historique, les marges et un assistant déterministe fonctionnant
+entièrement en local. La validation mensuelle glissante disponible atteint un
+WAPE de 8,25\,\% sur les quantités agrégées avec Holt--Winters. La version auditée
+est couverte par 86 tests automatisés réussis.
+
+\textbf{Mots-clés :} intelligence artificielle, apprentissage automatique,
+prévision des ventes, séries temporelles, planification de production, MRP,
+nomenclature, Dash, validation glissante, boulangerie.
+
+\clearpage
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+This report presents the design and implementation of \NomProjet, an internal
+system built to forecast sales for a PAUL retail location and turn those forecasts
+into production and purchasing decisions. This is an applied artificial
+intelligence project combining statistical forecasting, a global machine-learning
+model and automated model selection for each product. The solution processes 373,875 daily
+sales records spanning from July 7, 2021 to June 28, 2026. It combines a monthly
+engine, which benchmarks ten forecasting candidates for each product, with a daily engine
+that accounts for weekday patterns, level shifts, Moroccan holidays, football
+matches, one-off events and known customer orders.
+
+Forecasted quantities are exploded through product recipes and semi-finished
+sub-recipes to estimate raw-material requirements, material costs and recommended
+production quantities at a 95\% service level. A Dash web application brings
+together daily and monthly production, purchasing needs, events, orders,
+historical analysis, margins and a fully local deterministic assistant. Available
+walk-forward monthly validation reaches an 8.25\% WAPE on aggregate quantities
+with Holt--Winters. The audited version passes all 86 automated tests.
+
+\textbf{Keywords:} artificial intelligence, machine learning, sales forecasting,
+time series, production planning, MRP, bill of materials, Dash, walk-forward
+validation, bakery.
+
+\clearpage
+\setcounter{tocdepth}{1}
+\begingroup
+\small
+\setlength{\parskip}{0pt}
+\tableofcontents
+\endgroup
+\clearpage
+\listoffigures
+\addcontentsline{toc}{chapter}{Liste des figures}
+\clearpage
+\listoftables
+\addcontentsline{toc}{chapter}{Liste des tableaux}
+
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\input{chapters/introduction}
+\input{chapters/chapitre1}
+\input{chapters/chapitre2}
+\input{chapters/chapitre3}
+\input{chapters/chapitre4}
+\input{chapters/conclusion}
+\input{chapters/bibliographie}
+\input{chapters/annexes}
+
+\end{document}

@@ -1,0 +1,248 @@
+\chapitrepage{Présentation du cadre du projet}
+
+\begin{objectifbox}
+Ce chapitre situe le projet dans son environnement professionnel. Nous présentons
+le domaine d'activité, le processus de décision avant informatisation, les limites
+observées, la solution retenue, son originalité et l'organisation des travaux.
+\end{objectifbox}
+
+\section{Introduction}
+
+La valeur d'un système de prévision ne dépend pas uniquement de la qualité d'un
+algorithme. Elle dépend également de la fraîcheur des données, de la manière dont
+les résultats sont expliqués, du lien avec les contraintes de production et de la
+capacité des utilisateurs à corriger une situation exceptionnelle. Nous avons
+donc commencé par comprendre le fonctionnement du point de vente et les décisions
+qui devaient être améliorées avant de choisir les technologies.
+
+\section{Présentation de l'organisme d'accueil}
+
+\subsection{Contexte général}
+
+PAUL est une enseigne de boulangerie et de restauration dont l'identité de marque
+rappelle une maison fondée en 1889. Le contexte étudié concerne un point de vente
+au Maroc. Son activité combine des produits de boulangerie, de viennoiserie, de
+pâtisserie, de cuisine et de boissons. Cette diversité crée des profils de demande
+très différents : certains produits sont vendus chaque jour en volume élevé,
+d'autres sont intermittents, saisonniers ou associés à un moment de consommation
+précis.
+
+Le projet se concentre sur l'interface entre trois fonctions opérationnelles :
+
+\begin{itemize}
+  \item la \textbf{vente}, qui fournit les tickets et les quantités réellement
+  écoulées ;
+  \item la \textbf{production}, qui doit préparer les bonnes quantités au bon
+  moment ;
+  \item l'\textbf{approvisionnement}, qui doit convertir le plan de production en
+  besoins de farine, beurre, lait, fruits, emballages et autres composants.
+\end{itemize}
+
+Les équipes manipulent également des informations transversales : fêtes
+marocaines, matchs de l'équipe nationale, événements ponctuels, commandes de
+clients professionnels, recettes validées par le chef et prix d'achat. La solution
+devait rassembler ces éléments sans déplacer les données sensibles vers un service
+externe.
+
+\subsection{Périmètre métier}
+
+Le corpus local audité contient 373\,875 lignes de ventes journalières, comprises
+entre le 7 juillet 2021 et le 28 juin 2026. Il couvre 1\,131 libellés produits
+répartis dans dix familles et représente 4\,364\,539 unités vendues. Ces ordres de
+grandeur imposent une automatisation : un traitement manuel produit par produit
+serait trop lent et difficilement reproductible.
+
+\begin{table}[H]
+\centering
+\caption{Périmètre de données observé dans la version auditée}
+\label{tab:perimetre-donnees}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{4.4cm}Y}
+\toprule
+Indicateur & Valeur observée \\
+\midrule
+Période des ventes & 07/07/2021 au 28/06/2026 \\
+Lignes de ventes journalières & 373\,875 \\
+Jours distincts & 1\,817 \\
+Produits distincts & 1\,131 \\
+Familles de produits & 10 \\
+Quantité totale enregistrée & 4\,364\,539 unités \\
+Chiffre d'affaires TTC cumulé & Donnée confidentielle non publiée \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Étude de l'existant}
+
+\subsection{Description du processus existant}
+
+Les ventes historiques proviennent d'abord d'états générés par le logiciel de
+caisse PI Électronique/Elyx. Une partie de l'historique est disponible sous forme
+d'exports DOS à largeur fixe et de classeurs mensuels. Les ventes les plus récentes
+peuvent être extraites depuis SQL Server. Par ailleurs, les recettes techniques et
+les prix matières sont conservés dans des fichiers distincts. Les décisions de
+production reposent donc sur plusieurs supports, dont les structures, les noms de
+produits et les granularités ne sont pas uniformes.
+
+Avant l'intégration proposée, le processus pouvait être résumé comme suit :
+
+\begin{enumerate}
+  \item consulter les ventes passées ou les états de caisse ;
+  \item estimer les quantités futures à partir de l'expérience récente ;
+  \item ajuster mentalement cette estimation selon le calendrier ;
+  \item reporter les quantités dans des supports opérationnels ;
+  \item rapprocher manuellement les produits de leurs matières premières.
+\end{enumerate}
+
+Cette organisation contient une connaissance métier utile, mais elle rend la
+décision dépendante de la disponibilité d'une personne, ne mesure pas
+systématiquement l'erreur et complique l'explication d'une recommandation.
+
+\subsection{Critique de l'existant}
+
+L'analyse a mis en évidence les insuffisances suivantes :
+
+\begin{itemize}
+  \item \textbf{dispersion des données} : ventes mensuelles, ventes journalières,
+  recettes, événements et prix ne sont pas réunis dans une chaîne unique ;
+  \item \textbf{hétérogénéité des sources} : encodage CP850, sous-totaux présents
+  dans certains exports et variations de libellés peuvent introduire des doubles
+  comptes ou des ruptures de séries ;
+  \item \textbf{prévision uniforme} : une même méthode ne convient ni à un produit
+  régulier, ni à une vente intermittente, ni à un produit récemment introduit ;
+  \item \textbf{absence de validation temporelle systématique} : une précision
+  calculée sur les données d'entraînement surestime la performance réelle ;
+  \item \textbf{prise en compte informelle des événements} : les fêtes, matchs et
+  commandes importantes ne sont pas intégrés de manière reproductible ;
+  \item \textbf{rupture entre vente et achat} : une prévision de produits finis ne
+  fournit pas directement la quantité de matières à commander ;
+  \item \textbf{faible traçabilité} : il est difficile de savoir quel modèle,
+  quelle recette ou quel ajustement a conduit à une valeur donnée.
+\end{itemize}
+
+\subsection{Contraintes identifiées}
+
+Les contraintes métier ont orienté l'architecture. Les données commerciales
+doivent rester sur la machine de l'entreprise. Le système doit fonctionner sur un
+poste Windows, supporter une mise à jour par fichiers lorsque la connexion SQL
+n'est pas disponible, ne pas écraser l'historique si une extraction est vide ou
+aberrante, et fournir des exports compréhensibles par des utilisateurs non
+techniques. Enfin, les recettes restent en cours de fiabilisation ; le système doit
+donc distinguer une recette exacte d'une estimation et rendre cette incertitude
+visible.
+
+\section{Solution proposée}
+
+\subsection{Vue d'ensemble}
+
+La solution retenue est une application locale en Python composée d'une chaîne de
+traitement et d'un tableau de bord web. Elle conserve les données métier dans des
+fichiers CSV et JSON lisibles, tout en proposant un accès automatisé en lecture à
+la base SQL de la caisse. Elle produit deux niveaux de prévision complémentaires :
+
+\begin{itemize}
+  \item un système \textbf{mensuel}, destiné au plan de production, au budget et
+  au calcul MRP ;
+  \item un système \textbf{journalier}, destiné à la préparation quotidienne et
+  au suivi court terme.
+\end{itemize}
+
+La chaîne complète va de la vente réelle à la recommandation : préparation des
+données, sélection du modèle, ajustements calendrier et commandes, estimation de
+l'incertitude, explosion des nomenclatures, calcul des coûts, génération d'exports
+et restitution dans le dashboard.
+
+Cette chaîne constitue un système d'intelligence artificielle décisionnelle. Elle
+combine des méthodes de séries temporelles, un modèle de gradient boosting qui
+apprend des motifs communs entre produits, ainsi qu'un mécanisme de sélection
+automatique fondé sur des validations temporelles. Chaque recommandation conserve
+néanmoins son modèle, son niveau de fiabilité et ses hypothèses afin que l'usage de
+l'IA reste traçable et compréhensible par les responsables métier.
+
+\subsection{Avantages de la solution retenue}
+
+Cette solution présente plusieurs avantages. Elle est reproductible, car un même
+jeu de données et une même configuration conduisent au même résultat. Elle est
+traçable, car le modèle retenu par produit, la source des recettes et les
+ajustements sont externalisés. Elle est évolutive, car les modules de prévision,
+de nomenclature et d'interface peuvent être améliorés séparément. Elle est enfin
+compatible avec le niveau d'équipement existant : un poste Windows et un
+navigateur suffisent pour consulter l'application.
+
+\subsection{Originalité du projet}
+
+L'originalité ne réside pas dans l'emploi isolé d'un algorithme. Elle vient d'une
+IA hybride, associant prévision statistique, apprentissage automatique et règles
+métier dans une même solution :
+
+\begin{itemize}
+  \item comparaison de dix candidats de prévision et choix différent selon le produit ;
+  \item réconciliation entre la somme des produits et la prévision agrégée ;
+  \item apprentissage de l'impact des matchs à partir des jours comparables ;
+  \item neutralisation des pics assimilables à de grosses commandes dans
+  l'apprentissage, puis ajout exact des commandes futures connues ;
+  \item conversion récursive des produits semi-finis en matières de base ;
+  \item assistant guidé local, sans modèle génératif ni appel réseau, dont chaque
+  réponse provient des fichiers calculés ;
+  \item articulation entre précision statistique, marge de sécurité et usage
+  opérationnel.
+\end{itemize}
+
+\section{Démarche de développement}
+
+Nous avons adopté une démarche itérative proche d'un cycle incrémental. Chaque
+itération produit un résultat testable : un import fiable, une prévision, un
+export, une nouvelle vue du dashboard ou une amélioration des recettes. Ce choix
+est plus adapté qu'un cycle strictement séquentiel, car la qualité des données et
+les retours métier modifient régulièrement les règles de calcul.
+
+Le cycle d'une itération comprend cinq étapes : observer le besoin, isoler les
+données concernées, implémenter une règle ou un modèle, vérifier par test et
+backtest, puis présenter le résultat dans un format exploitable. Le dépôt Git
+conserve les évolutions et les correctifs. La version synchronisée comprend 22
+commits depuis l'import initial public du code, avec une attention particulière à
+l'automatisation SQL et à la fiabilisation des recettes.
+
+\section{Planning prévisionnel}
+
+Le tableau~\ref{tab:planning} présente le découpage prévisionnel adopté. Les
+semaines sont volontairement exprimées relativement au démarrage afin que le
+planning reste cohérent avec les dates administratives du stage.
+
+\begin{table}[H]
+\centering
+\caption{Planning prévisionnel sur douze semaines}
+\label{tab:planning}
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{p{4.4cm}*{12}{C{0.46cm}}}
+\toprule
+\textbf{Étape} & \textbf{S1}&\textbf{S2}&\textbf{S3}&\textbf{S4}&\textbf{S5}&\textbf{S6}&\textbf{S7}&\textbf{S8}&\textbf{S9}&\textbf{S10}&\textbf{S11}&\textbf{S12}\\
+\midrule
+Analyse du besoin et des sources
+&\cellcolor{paulGold}&\cellcolor{paulGold}&&&&&&&&&&\\
+Nettoyage et consolidation des ventes
+&&\cellcolor{paulGold}&\cellcolor{paulGold}&&&&&&&&&\\
+Prototype de prévision mensuelle
+&&&\cellcolor{paulGold}&\cellcolor{paulGold}&&&&&&&&\\
+Prévision journalière et événements
+&&&&\cellcolor{paulGold}&\cellcolor{paulGold}&&&&&&&\\
+Nomenclatures et besoins matières
+&&&&&\cellcolor{paulGold}&\cellcolor{paulGold}&\cellcolor{paulGold}&&&&\\
+Tableau de bord et exports
+&&&&&&\cellcolor{paulGold}&\cellcolor{paulGold}&\cellcolor{paulGold}&&&\\
+Automatisation et déploiement
+&&&&&&&&\cellcolor{paulGold}&\cellcolor{paulGold}&&\\
+Tests, validation et documentation
+&&&&&&&&&\cellcolor{paulGold}&\cellcolor{paulGold}&\cellcolor{paulGold}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Conclusion}
+
+Ce chapitre a montré que le besoin dépasse une simple visualisation de ventes.
+Le problème consiste à relier des sources hétérogènes à une décision de production
+et d'achat, en mesurant l'incertitude et en conservant la confidentialité. La
+solution proposée répond à ce cadre par une architecture locale, modulaire et
+itérative. Le chapitre suivant traduit ce cadre en besoins précis et en cas
+d'utilisation.
