@@ -1,0 +1,48 @@
+\chapter*{Introduction générale}
+\phantomsection
+\addcontentsline{toc}{chapter}{Introduction générale}
+\markboth{Introduction générale}{Introduction générale}
+
+Dans une activité de boulangerie-restauration, la décision de produire ne peut
+pas être reportée au moment où la demande se manifeste. Les équipes doivent
+préparer plusieurs références avant l'ouverture ou plusieurs heures avant leur
+vente, alors que la demande varie selon le jour de la semaine, la saison, les
+fêtes, les événements et les commandes exceptionnelles. Une quantité trop faible
+provoque des ruptures et une perte de chiffre d'affaires ; une quantité trop
+élevée augmente les invendus, immobilise des matières premières et dégrade la
+rentabilité. Cette tension rend la prévision directement opérationnelle : elle
+doit être compréhensible, actualisable et reliée aux recettes de production.
+
+Le contexte étudié est celui d'un point de vente PAUL au Maroc. Les informations
+historiques existent sous plusieurs formes : exports mensuels, états journaliers
+issus du logiciel de caisse, recettes techniques, prix de matières et événements
+connus. Avant le projet, ces éléments ne formaient pas une chaîne décisionnelle
+unique. L'historique permettait d'observer les ventes passées, mais il ne répondait
+pas automatiquement aux questions quotidiennes : combien produire demain,
+quelles références sont incertaines, quelles matières commander, quel effet
+attendre d'une fête ou d'une commande client, et comment contrôler la qualité
+des prévisions ?
+
+La problématique peut donc être formulée ainsi : \emph{comment concevoir un
+système local qui transforme des données de vente hétérogènes en prévisions
+journalières et mensuelles fiables, puis en recommandations de production et
+d'approvisionnement traçables, tout en restant utilisable par une équipe non
+spécialiste de la science des données ?}
+
+Pour répondre à cette problématique, nous avons développé \NomProjet. La solution
+réunit une chaîne de préparation de données, plusieurs méthodes de prévision, une
+validation temporelle sans fuite d'information, des ajustements métier, un calcul
+MRP à partir des nomenclatures, des exports opérationnels et un tableau de bord
+web. Le système est conçu pour fonctionner localement afin de préserver la
+confidentialité des ventes. Il peut également se mettre à jour automatiquement
+depuis la base SQL de la caisse lorsque l'infrastructure de production est
+disponible.
+
+Ce rapport est organisé en quatre chapitres. Le premier présente le cadre du
+projet, l'existant, ses limites, la solution retenue et la démarche de travail. Le
+deuxième formalise les acteurs, les besoins fonctionnels et non fonctionnels ainsi
+que les principaux cas d'utilisation. Le troisième expose la conception dynamique,
+l'architecture logicielle, le modèle de données et les choix de modélisation. Le
+quatrième décrit la réalisation, les interfaces principales, le déploiement, les
+tests et les résultats mesurés. Une conclusion générale synthétise enfin les
+apports, les limites actuelles et les perspectives d'évolution.

@@ -1,0 +1,180 @@
+\clearpage
+\appendix
+
+\newcommand{\annexepage}[1]{%
+  \clearpage
+  \refstepcounter{chapter}
+  \phantomsection
+  \addcontentsline{toc}{chapter}{Annexe \thechapter{} : #1}
+  \markboth{Annexe \thechapter{} — #1}{Annexe \thechapter{} — #1}
+  \thispagestyle{empty}
+  \vspace*{3.2cm}
+  \begin{center}
+    {\LARGE\bfseries Annexe \thechapter\par}
+    \vspace{1cm}
+    {\color{paulGold}\rule{\textwidth}{1pt}}\\[1.2cm]
+    {\Huge\bfseries #1\par}
+    \vspace{1.2cm}
+    {\color{paulGold}\rule{\textwidth}{1pt}}
+  \end{center}
+  \vfill
+  \begin{center}\color{gray}\NomProjet\end{center}
+  \clearpage}
+
+\annexepage{Guide d'installation et d'exploitation}
+
+\section{Installation locale}
+
+Le code et les données doivent être séparés. Le code peut être cloné depuis le
+dépôt, tandis que les dossiers sensibles sont transférés directement sur la
+machine de l'entreprise.
+
+\begin{lstlisting}[style=paulpython,language=bash,caption={Commandes d'installation}]
+git clone https://github.com/OthmaneW37/PrevisionPaul.git
+cd PrevisionPaul
+python -m pip install -r requirements.txt
+python -m pytest tests -q
+\end{lstlisting}
+
+Les dossiers \texttt{data/} et \texttt{donnees\_ventes/} doivent ensuite être
+placés dans la racine du projet. Ils ne sont pas publiés avec le code lorsqu'ils
+contiennent des informations métier.
+
+\section{Commandes d'exploitation}
+
+\small
+\begin{longtable}{p{6.8cm}p{7.4cm}}
+\caption{Principales commandes d'exploitation}\label{tab:commandes-exploitation}\\
+\toprule
+\textbf{Commande} & \textbf{Effet} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Commande} & \textbf{Effet} \\
+\midrule
+\endhead
+\path{python dashboard.py} & Lance le tableau de bord sur \url{http://127.0.0.1:8050}. \\
+\path{python main.py} & Recalcule les prévisions mensuelles, le plan sécurisé et le MRP. \\
+\path{python -m paul_forecast.forecast_journalier} & Régénère l'horizon journalier de 62 jours. \\
+\path{python outils/exporter_ventes_sql.py} & Lit les jours clôturés depuis SQL Server et fusionne le CSV. \\
+\path{python outils/mise_a_jour_quotidienne.py} & Exécute export SQL, journalier puis mensuel avec journalisation. \\
+\path{python outils/generer_tableau_recettes.py} & Crée le classeur à compléter par le chef. \\
+\path{python outils/importer_recettes_chefs.py} & Importe les recettes explicitement validées. \\
+\path{python -m pytest tests -q} & Lance l'ensemble des tests automatisés. \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\section{Procédure de mise à jour quotidienne}
+
+\begin{enumerate}
+  \item vérifier que la base Elyx est accessible ou déposer le nouvel export dans
+  \path{donnees_ventes/} ;
+  \item lancer la chaîne quotidienne ou attendre la tâche de 05 h 30 ;
+  \item consulter le journal du jour dans \texttt{logs/} ;
+  \item ouvrir le dashboard et contrôler la date « ventes réelles à jour au » ;
+  \item examiner les alertes de niveau et la fiabilité avant d'exporter le plan ;
+  \item vérifier le bon de commande avec le chef lorsque des recettes sont encore
+  estimées.
+\end{enumerate}
+
+\annexepage{Structure du projet et fichiers produits}
+
+\section{Arborescence fonctionnelle}
+
+\begin{lstlisting}[basicstyle=\ttfamily\small,frame=single,backgroundcolor=\color{softGray}]
+PrevisionPaul/
+|-- dashboard.py              # interface Dash
+|-- main.py                   # point d'entree mensuel
+|-- watcher.py                # surveillance des fichiers
+|-- paul_forecast/            # moteurs et regles metier
+|-- data/                     # configuration JSON locale
+|-- donnees_ventes/           # historique des ventes
+|-- exports/                  # sorties journalieres et datees
+|-- outils/                   # imports, benchmarks, recettes
+|-- tests/                    # suite Pytest
+|-- docs/                     # documents pour les equipes
+`-- Rapport/                  # sources LaTeX du present rapport
+\end{lstlisting}
+
+\section{Exports principaux}
+
+\small
+\begin{longtable}{p{7.0cm}p{7.2cm}}
+\caption{Fichiers produits par le système}\label{tab:exports}\\
+\toprule
+\textbf{Fichier} & \textbf{Contenu} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Fichier} & \textbf{Contenu} \\
+\midrule
+\endhead
+\path{exports/previsions_journalieres.csv} & Date, produit, famille, prévision, recommandation, fiabilité et commande. \\
+\path{exports/suivi_prevu_reel.csv} & Comparaison hors échantillon sur les jours récents. \\
+\path{plan_production_securise.csv} & Plan mensuel par produit, modèle, erreur et intervalle. \\
+\path{besoins_ingredients_planifies.csv} & Quantité requise par ingrédient et par mois. \\
+\path{previsions_detaillees_par_produit.csv} & Historique et scénarios de prévision détaillés. \\
+\path{previsions_par_famille.csv} & Synthèse mensuelle par famille. \\
+\path{validation_mensuelle_quantite.csv} & Réel et prévisions walk-forward en quantité. \\
+\path{validation_mensuelle_ca.csv} & Réel et prévisions walk-forward en chiffre d'affaires. \\
+\path{previsions_PAUL_2026.xlsx} & Classeur multi-feuilles à destination du responsable. \\
+\path{bon_de_commande_gerant.txt} & Synthèse textuelle des matières à commander. \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\annexepage{Compléments de validation}
+
+\section{Répartition des modèles sélectionnés}
+
+Le benchmark disponible contient 848 produits. La répartition du meilleur modèle
+montre l'intérêt d'une sélection hétérogène : Theta est retenu pour 293 produits,
+le GBM pour 227, le naïf saisonnier pour 102, ETS pour 77, la moyenne mobile pour
+44, l'ensemble médian pour 35, la moyenne pour 23, ARIMA pour 20, Croston pour 14
+et l'ensemble moyen pour 13.
+
+\begin{table}[H]
+\centering
+\caption{Répartition des modèles retenus dans le benchmark}
+\label{tab:repartition-modeles}
+\begin{tabular}{lrr@{\hspace{1.2cm}}lrr}
+\toprule
+\textbf{Modèle} & \textbf{Produits} & \textbf{Part} & \textbf{Modèle} & \textbf{Produits} & \textbf{Part} \\
+\midrule
+Theta & 293 & 34,6\,\% & Moyenne mobile & 44 & 5,2\,\% \\
+GBM & 227 & 26,8\,\% & Ensemble médian & 35 & 4,1\,\% \\
+Naïf saisonnier & 102 & 12,0\,\% & Moyenne & 23 & 2,7\,\% \\
+ETS & 77 & 9,1\,\% & ARIMA & 20 & 2,4\,\% \\
+Croston & 14 & 1,7\,\% & Ensemble moyen & 13 & 1,5\,\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Graphiques statiques générés}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{dashboard_gerant.png}
+\caption{Dashboard statique destiné au responsable}
+\label{fig:annexe-dashboard-gerant}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{dashboard_matieres_premieres.png}
+\caption{Dashboard statique des matières premières}
+\label{fig:annexe-dashboard-matieres}
+\end{figure}
+
+\section{Limites à contrôler avant usage opérationnel}
+
+\begin{itemize}
+  \item actualiser les ventes et vérifier la date de fraîcheur ;
+  \item confirmer les recettes à plus fort poids matière ;
+  \item remplacer les prix estimés par les factures fournisseurs ;
+  \item retirer le calibrage provisoire des farines après validation complète ;
+  \item analyser le biais journalier et recalibrer les seuils si nécessaire ;
+  \item ne pas interpréter les marges matière comme une marge nette ;
+  \item contrôler les événements et commandes futurs avant chaque recalcul.
+\end{itemize}

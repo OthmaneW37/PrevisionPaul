@@ -1,0 +1,421 @@
+\chapitrepage{Conception du système}
+
+\begin{objectifbox}
+Ce chapitre répond à la question « comment construire la solution ? ». Nous
+présentons les scénarios dynamiques, l'architecture en couches, les modèles de
+prévision, la conception du MRP, le modèle logique des données et le déploiement.
+\end{objectifbox}
+
+\section{Introduction}
+
+La conception de \NomProjet repose sur une idée centrale : séparer la donnée
+source, les calculs métier et la restitution. Cette séparation permet de rejouer
+un calcul, de tester chaque règle indépendamment et de remplacer un composant sans
+réécrire toute l'application. Les fichiers CSV et JSON forment un contrat simple
+entre les modules ; le dashboard n'entraîne pas lui-même les modèles, il lit les
+résultats produits par les moteurs.
+
+\section{Modélisation dynamique}
+
+\subsection{Séquence de mise à jour quotidienne}
+
+La figure~\ref{fig:sequence-maj} détaille le scénario automatisé. L'extraction SQL
+est volontairement placée avant les deux moteurs. Les fichiers journaliers sont
+générés avant le pipeline mensuel, car ce dernier peut compléter son panel avec les
+mois complets issus de la source journalière.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[>=Latex,font=\scriptsize]
+  \foreach \x/\name/\label in {
+    0/task/Planificateur,
+    3/sql/SQL Elyx,
+    6/orch/Orchestrateur,
+    9/day/Moteur journalier,
+    12/month/Pipeline mensuel,
+    15/files/Exports}
+  {
+    \node[draw,rounded corners,fill=paulCream,minimum width=2.35cm,minimum height=0.75cm] (\name) at (\x,0) {\label};
+    \draw[dashed,gray] (\x,-0.4) -- (\x,-8.1);
+  }
+  \draw[->] (task.south) ++(0,-0.65) -- node[above]{déclencher à 05 h 30} ($(orch.south)+(0,-0.65)$);
+  \draw[->] ($(orch.south)+(0,-1.45)$) -- node[above]{lire jours clôturés} ($(sql.south)+(0,-1.45)$);
+  \draw[->] ($(sql.south)+(0,-2.15)$) -- node[above]{lignes agrégées} ($(orch.south)+(0,-2.15)$);
+  \draw[->] ($(orch.south)+(0,-2.85)$) -- node[above]{fusion contrôlée CSV} ($(files.south)+(0,-2.85)$);
+  \draw[->] ($(orch.south)+(0,-3.65)$) -- node[above]{générer 62 jours} ($(day.south)+(0,-3.65)$);
+  \draw[->] ($(day.south)+(0,-4.35)$) -- node[above]{prévisions + suivi} ($(files.south)+(0,-4.35)$);
+  \draw[->] ($(orch.south)+(0,-5.15)$) -- node[above]{lancer le pipeline} ($(month.south)+(0,-5.15)$);
+  \draw[->] ($(month.south)+(0,-5.85)$) -- node[above]{plan + MRP + validation} ($(files.south)+(0,-5.85)$);
+  \draw[->] ($(files.south)+(0,-6.65)$) -- node[above]{statut et journaux} ($(orch.south)+(0,-6.65)$);
+  \draw[->] ($(orch.south)+(0,-7.35)$) -- node[above]{code retour} ($(task.south)+(0,-7.35)$);
+\end{tikzpicture}}
+\caption{Diagramme de séquence de la mise à jour quotidienne}
+\label{fig:sequence-maj}
+\end{figure}
+
+\subsection{Activité de génération d'une recommandation}
+
+Le calcul d'une recommandation suit une série de contrôles. Une vente future ne
+doit jamais être mélangée aux données d'entraînement et un produit sans historique
+suffisant doit être signalé au lieu de recevoir une fausse précision.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.98\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=8mm and 14mm,
+  flowstep/.style={draw,rounded corners,fill=white,minimum width=6.2cm,minimum height=0.72cm,align=center,font=\small},
+  decision/.style={draw,diamond,aspect=2.6,fill=paulCream,align=center,font=\small},
+  arrow/.style={-{Latex[length=2mm]},thick,paulBrown}]
+  \node[flowstep] (load) {Charger et nettoyer la série du produit};
+  \node[decision,below=of load] (hist) {Historique suffisant ?};
+  \node[flowstep,below left=of hist] (fallback) {Appliquer un repli prudent\\et marquer « historique court »};
+  \node[flowstep,below right=of hist] (model) {Calculer le modèle sélectionné\\et les composantes calendaires};
+  \node[flowstep,below=18mm of hist] (boost) {Combiner fêtes, matchs, événements et commandes};
+  \node[flowstep,below=of boost] (unc) {Estimer l'incertitude et la marge de sécurité};
+  \node[flowstep,below=of unc] (override) {Appliquer une correction manuelle éventuelle};
+  \node[flowstep,below=of override] (out) {Écrire prévision, recommandation et fiabilité};
+  \draw[arrow] (load) -- (hist);
+  \draw[arrow] (hist) -- node[above left]{non} (fallback);
+  \draw[arrow] (hist) -- node[above right]{oui} (model);
+  \draw[arrow] (fallback) |- (boost);
+  \draw[arrow] (model) |- (boost);
+  \draw[arrow] (boost) -- (unc);
+  \draw[arrow] (unc) -- (override);
+  \draw[arrow] (override) -- (out);
+\end{tikzpicture}
+}
+\caption{Diagramme d'activité du calcul d'une recommandation}
+\label{fig:activite-recommandation}
+\end{figure}
+
+\section{Architecture logicielle}
+
+\subsection{Architecture globale}
+
+L'architecture de la figure~\ref{fig:architecture-globale} distingue six zones :
+sources, ingestion, moteurs, règles métier, sorties et interface. Les flèches
+pleines représentent le flux nominal ; la configuration JSON agit transversalement
+sur les moteurs et les règles.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  box/.style={draw,rounded corners,minimum width=3.2cm,minimum height=1.0cm,align=center,font=\small},
+  source/.style={box,fill=softGray},
+  engine/.style={box,fill=paulCream},
+  output/.style={box,fill=white},
+  flow/.style={-{Latex[length=2.2mm]},thick,paulBrown}]
+
+  \node[source] (dos) at (0,3.8) {Exports DOS / Excel\\historiques};
+  \node[source] (sql) at (0,2.1) {SQL Server Elyx\\jours clôturés};
+  \node[source] (refs) at (0,0.4) {Recettes, prix, fêtes,\\événements, commandes};
+
+  \node[engine] (ingest) at (4.2,3.0) {Ingestion et nettoyage\\\texttt{data\_loader.py}};
+  \node[engine] (config) at (4.2,0.8) {Configuration métier\\\texttt{config.py} + JSON};
+
+  \node[engine] (daily) at (8.5,4.1) {Prévision journalière\\62 jours};
+  \node[engine] (monthly) at (8.5,2.5) {Prévision mensuelle\\12 mois};
+  \node[engine] (rules) at (8.5,0.9) {Fêtes, matchs, commandes,\\incertitude};
+  \node[engine] (mrp) at (8.5,-0.7) {BOM / PSF / coûts\\et couverture};
+
+  \node[output] (csv) at (12.8,3.6) {CSV et Excel\\opérationnels};
+  \node[output] (reports) at (12.8,1.8) {Rapports, graphiques\\et journaux};
+  \node[output] (dash) at (12.8,0) {Dashboard Dash\\et assistant local};
+
+  \draw[flow] (dos) -- (ingest);
+  \draw[flow] (sql) -- (ingest);
+  \draw[flow] (refs) -- (config);
+  \draw[flow] (ingest) -- (daily);
+  \draw[flow] (ingest) -- (monthly);
+  \draw[flow] (config) -- (rules);
+  \draw[flow] (config) -- (mrp);
+  \draw[flow] (daily) -- (csv);
+  \draw[flow] (monthly) -- (csv);
+  \draw[flow] (rules) -- (daily);
+  \draw[flow] (rules) -- (monthly);
+  \draw[flow] (monthly) -- (mrp);
+  \draw[flow] (mrp) -- (reports);
+  \draw[flow] (csv) -- (dash);
+  \draw[flow] (reports) -- (dash);
+
+  \node[draw,dashed,rounded corners,fit=(ingest)(mrp),inner sep=5mm] (calcbox) {};
+  \node[font=\bfseries,anchor=south west,xshift=2mm,yshift=2mm]
+        at (calcbox.north west) {Couche de calcul Python};
+\end{tikzpicture}}
+\caption{Architecture fonctionnelle globale de PrevisionPaul}
+\label{fig:architecture-globale}
+\end{figure}
+
+\subsection{Responsabilités des modules}
+
+Le code principal est réparti dans le paquet \texttt{paul\_forecast}. Le tableau
+\ref{tab:modules} synthétise les responsabilités. Cette organisation joue le rôle
+d'un diagramme de composants statique : les dépendances vont de la configuration
+vers les services métier, puis vers le pipeline et l'interface.
+
+\small
+\begin{longtable}{p{4.5cm}p{9.9cm}}
+\caption{Principaux composants logiciels}\label{tab:modules}\\
+\toprule
+\textbf{Composant} & \textbf{Responsabilité} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Composant} & \textbf{Responsabilité} \\
+\midrule
+\endhead
+\texttt{data\_loader.py} & Charge, valide, nettoie et agrège les ventes mensuelles et journalières. \\
+\texttt{forecasting.py} & Implémente les prévisions de base et les replis lorsque certaines bibliothèques sont absentes. \\
+\texttt{modele\_global.py} & Entraîne un modèle de gradient boosting partagé entre les produits à partir de variables retardées et calendaires. \\
+\texttt{forecast\_journalier.py} & Calcule le niveau récent, l'ancre annuelle, le profil hebdomadaire, les ruptures et l'horizon de 62 jours. \\
+\texttt{saisonnalite\_fetes.py} / \texttt{calibration\_fetes.py} & Mesure et applique les profils des fêtes marocaines. \\
+\texttt{matchs.py} / \texttt{evenements.py} & Apprend ou applique les impacts des matchs et événements ponctuels. \\
+\texttt{commandes.py} & Détecte les pics assimilables à des commandes, nettoie l'apprentissage et ajoute les commandes futures. \\
+\texttt{incertitude.py} & Convertit les erreurs mesurées en intervalles, quantités recommandées et étiquettes de fiabilité. \\
+\texttt{bom.py} & Associe les produits aux recettes, éclate les PSF et normalise les matières. \\
+\texttt{couts.py} / \texttt{marges.py} & Valorise les besoins et calcule les indicateurs de marge matière. \\
+\texttt{couverture.py} & Mesure la part des volumes couverte par des recettes exactes ou estimées. \\
+\texttt{backtest.py} / \texttt{suivi.py} & Évalue les modèles sans fuite temporelle aux niveaux mensuel et journalier. \\
+\texttt{pipeline.py} & Orchestre la prévision mensuelle, la réconciliation, le MRP, la validation et les exports. \\
+\texttt{assistant.py} & Fournit des outils de question-réponse déterministes à partir des fichiers locaux. \\
+\texttt{reporting.py} & Génère tableaux, classeurs, bons de commande et graphiques statiques. \\
+\texttt{dashboard.py} & Construit l'interface Dash, ses vues, ses callbacks et ses exports interactifs. \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\section{Conception des moteurs de prévision}
+
+\subsection{Sélection mensuelle par produit}
+
+Un seul modèle global appliqué à toutes les références serait inadapté. Nous
+comparons sept modèles de base et trois candidats complémentaires, soit dix
+candidats : ETS/Holt--Winters, Theta, ARIMA, naïf saisonnier, moyenne mobile,
+moyenne historique, Croston, ensemble moyen, ensemble médian et gradient boosting
+global. Ces familles sont décrites dans la littérature de référence sur la
+prévision~\cite{hyndman2021} et dans les documentations de
+statsmodels~\cite{statsmodelsHW} et scikit-learn~\cite{sklearnGBM}. Croston cible
+notamment les demandes intermittentes ; le modèle naïf
+saisonnier sert de référence ; les ensembles réduisent la sensibilité à un choix
+unique ; le gradient boosting mutualise l'information entre produits.
+
+\begin{table}[H]
+\centering
+\caption{Candidats de prévision mensuelle}
+\label{tab:modeles}
+\small
+\begin{tabularx}{\textwidth}{p{3.1cm}Yp{4.2cm}}
+\toprule
+\textbf{Candidat} & \textbf{Principe} & \textbf{Profil adapté} \\
+\midrule
+ETS / Holt--Winters & Niveau, tendance et saisonnalité exponentiels. & Séries régulières avec saisonnalité annuelle. \\
+Theta & Décomposition de la série en lignes Theta. & Séries lisses ou modérément tendancielles. \\
+ARIMA & Dépendances autorégressives et moyennes mobiles. & Séries avec autocorrélation exploitable. \\
+Naïf saisonnier & Reprend la valeur du même mois de l'année précédente. & Saisonnalité stable et forte. \\
+Moyenne mobile & Moyenne des derniers mois. & Niveau récent stable. \\
+Moyenne & Moyenne historique. & Référence simple ou historique court. \\
+Croston & Sépare taille et intervalle des demandes non nulles. & Produits intermittents. \\
+Ensemble moyen & Moyenne de plusieurs modèles statistiques. & Réduction du risque d'un modèle isolé. \\
+Ensemble médian & Médiane robuste de quatre candidats. & Présence de prévisions extrêmes. \\
+GBM global & Apprentissage partagé sur retards, calendrier, fêtes et famille. & Produits bénéficiant de motifs communs. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Le benchmark utilise douze fenêtres glissantes à un mois d'horizon. Pour chaque
+produit $p$ et fenêtre $t$, l'erreur absolue est :
+
+\begin{equation}
+e_{p,t,m}=\left|y_{p,t}-\widehat{y}_{p,t,m}\right|,
+\end{equation}
+
+où $m$ désigne le modèle candidat. Le modèle retenu minimise la moyenne des
+erreurs disponibles. Le fichier \texttt{modele\_par\_produit.json} conserve ce
+choix pour 848 produits disposant d'un historique suffisant.
+
+\subsection{Réconciliation hiérarchique}
+
+La somme de plus de mille prévisions ajustées séparément peut diverger du niveau
+global. Nous calculons donc une prévision agrégée Holt--Winters, puis un facteur de
+réconciliation mensuel :
+
+\begin{equation}
+r_t = \mathrm{clip}\left(
+\frac{\widehat{Y}^{\,\mathrm{global}}_t}
+{\sum_p \widehat{y}_{p,t}},\;0{,}7,\;1{,}4\right).
+\end{equation}
+
+La prévision réconciliée devient
+$\widehat{y}^{\,\mathrm{rec}}_{p,t}=r_t\widehat{y}_{p,t}$. Les bornes évitent qu'un
+agrégat aberrant ne transforme excessivement toutes les références.
+
+\subsection{Modèle journalier}
+
+Le moteur journalier cherche un compromis entre réactivité et saisonnalité. Pour
+un jour futur $d$, il calcule :
+
+\begin{equation}
+\widehat{y}_{p,d}=\left[\beta_p L^{\,\text{récent}}_p+
+(1-\beta_p)L^{\,\text{annuel}}_{p,d}\right]
+\times w_{p,j(d)} \times b_{p,d},
+\end{equation}
+
+où $w_{p,j(d)}$ est le poids du jour de semaine et $b_{p,d}$ le multiplicateur
+métier combiné. En régime normal, $\beta=0{,}4$. Lorsqu'une hausse ou une baisse
+durable est détectée par comparaison de fenêtres récentes avec l'ancre annuelle,
+le poids récent est porté jusqu'à $0{,}85$ ou $0{,}90$. Le ratio de croissance
+annuel est borné entre 0,6 et 1,8 afin de contenir les valeurs extrêmes.
+
+La fiabilité journalière est mesurée en rejouant les 28 derniers jours. Les
+paramètres sont réestimés chaque semaine et l'erreur porte sur les totaux
+hebdomadaires. Le produit est classé « Fiable », « Moyen », « Incertain », « Peu
+vendu » ou « Historique court ». Ces libellés évitent de présenter un pourcentage
+fragile pour une référence presque jamais vendue.
+
+\subsection{Combinaison des événements et commandes}
+
+Les multiplicateurs calendaires ne sont pas simplement multipliés les uns par les
+autres. Le système conserve le plus grand facteur supérieur à un et le plus petit
+facteur inférieur à un, puis les combine. Cette règle empêche qu'une fête, un
+match et un événement saisi le même jour produisent une hausse irréaliste.
+
+Les commandes clients suivent une règle différente. Une commande future connue
+est une quantité certaine : elle est ajoutée à la prévision de la date et au MRP.
+En revanche, un pic historique détecté comme atypique est remplacé par une médiane
+locale pendant l'apprentissage. Cette séparation évite que le modèle interprète
+une commande exceptionnelle comme une nouvelle demande habituelle.
+
+\section{Conception du calcul MRP}
+
+\subsection{Explosion des nomenclatures}
+
+Pour un produit $p$, une matière $i$ et un mois $t$, le besoin brut est :
+
+\begin{equation}
+B_{i,t}=\sum_p Q^{\,\text{recommandée}}_{p,t}\times q_{p,i},
+\end{equation}
+
+où $q_{p,i}$ représente la quantité de matière $i$ nécessaire pour une unité du
+produit. Lorsque la recette contient un produit semi-fini, celui-ci est remplacé
+récursivement par sa propre recette. Un ensemble d'alias unifie par exemple les
+différentes écritures d'une même farine. Les grammes et millilitres sont ensuite
+convertis en kilogrammes et litres pour le bon de commande.
+
+L'algorithme applique l'ordre de priorité suivant : recette exacte validée,
+détection par le nom, recette générique de famille, puis absence explicite de
+recette. La provenance accompagne le résultat. Ainsi, une estimation reste
+utilisable pour le pilotage, mais elle n'est pas confondue avec une fiche validée
+par le chef.
+
+\subsection{Valorisation}
+
+Les prix sont recherchés par mots-clés du plus spécifique au plus général. Le coût
+d'une ligne vaut la quantité normalisée multipliée par le prix unitaire. Le
+food-cost présenté dans le dashboard est un plancher, car il ne comprend ni
+main-d'œuvre, ni énergie, ni emballages absents du référentiel. Cette restriction
+est affichée à l'utilisateur au lieu d'être masquée.
+
+\section{Modèle logique des données}
+
+\subsection{Relations principales}
+
+La solution n'impose pas une base applicative transactionnelle. Les tables
+logiques sont matérialisées par des CSV et JSON. La figure~\ref{fig:modele-donnees}
+montre les relations nécessaires au calcul. Les transformations tabulaires et
+temporelles s'appuient principalement sur pandas~\cite{pandasDocs}.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[
+  entity/.style={draw,rounded corners,fill=white,minimum width=4.2cm,align=left,font=\scriptsize,inner sep=3mm},
+  rel/.style={-{Latex[length=2mm]},thick,paulBrown}]
+  \node[entity] (vente) at (0,4.2) {\textbf{VENTE JOURNALIÈRE}\\Date, Code, Produit, Famille\\Quantité, CA TTC};
+  \node[entity] (produit) at (6,4.2) {\textbf{PRODUIT}\\Nom, Famille, Modèle retenu\\Ajustement, provenance recette};
+  \node[entity] (recette) at (12,4.2) {\textbf{RECETTE}\\Produit, Ingrédient\\Quantité unitaire, source};
+  \node[entity] (cal) at (0,0.8) {\textbf{CALENDRIER MÉTIER}\\Fête, événement, match\\Période, portée, impact};
+  \node[entity] (prev) at (6,0.8) {\textbf{PRÉVISION}\\Date/Mois, Produit, Quantité\\Recommandation, fiabilité};
+  \node[entity] (mat) at (12,0.8) {\textbf{BESOIN MATIÈRE}\\Date/Mois, Ingrédient\\Quantité, unité, coût};
+  \node[entity] (cmd) at (0,-2.5) {\textbf{COMMANDE CLIENT}\\Date, Produit, Quantité\\Client, identifiant};
+  \node[entity] (prix) at (12,-2.5) {\textbf{PRIX MATIÈRE}\\Mot-clé, prix, unité\\Devise, date de mise à jour};
+
+  \draw[rel] (vente) -- node[above]{historise} (produit);
+  \draw[rel] (produit) -- node[above]{possède} (recette);
+  \draw[rel] (vente) -- (prev);
+  \draw[rel] (cal) -- (prev);
+  \draw[rel] (cmd) -- (prev);
+  \draw[rel] (produit) -- (prev);
+  \draw[rel] (prev) -- (mat);
+  \draw[rel] (recette) -- (mat);
+  \draw[rel] (prix) -- (mat);
+\end{tikzpicture}}
+\caption{Modèle logique des données de PrevisionPaul}
+\label{fig:modele-donnees}
+\end{figure}
+
+\subsection{Dictionnaire synthétique}
+
+\begin{table}[H]
+\centering
+\caption{Dictionnaire des champs principaux}
+\label{tab:dictionnaire}
+\small
+\begin{tabularx}{\textwidth}{p{3.2cm}p{2.6cm}Yp{3.2cm}}
+\toprule
+\textbf{Champ} & \textbf{Type} & \textbf{Définition} & \textbf{Contrainte} \\
+\midrule
+\texttt{Date} & date ISO & Jour de vente ou de prévision. & Jour clôturé pour les ventes SQL. \\
+\texttt{Produit} & texte & Libellé canonique de la référence. & Non vide ; rapproché des alias. \\
+\texttt{Famille} & catégorie & Département commercial. & Une des familles connues. \\
+\texttt{Quantite} & décimal & Quantité réellement vendue. & Valeur négative ramenée ou traitée comme retour. \\
+\texttt{Qty\_Prev} & décimal & Prévision centrale avant sécurité. & Supérieure ou égale à zéro. \\
+\texttt{Qty\_Recommandee} & décimal & Prévision augmentée selon l'incertitude. & Supérieure ou égale à \texttt{Qty\_Prev}. \\
+\texttt{Fiabilite} & catégorie & Niveau issu du backtest. & Fiable, Moyen, Incertain, Peu vendu ou Hist. court. \\
+\texttt{Ingredient} & texte & Matière première canonique. & Alias résolus avant agrégation. \\
+\texttt{Quantite\_Requise} & décimal & Besoin total calculé. & Unité normalisée pour l'achat. \\
+\texttt{Modele} & catégorie & Candidat retenu pour le produit. & Présent dans la liste des candidats. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Architecture matérielle et déploiement}
+
+La solution s'exécute sur un serveur ou un poste Windows relié au réseau interne.
+Le serveur SQL Elyx reste la source transactionnelle ; \NomProjet{} effectue une
+lecture sur les jours clôturés et conserve son propre historique analytique en
+fichiers. Le dashboard écoute par défaut sur le port local 8050. Le navigateur
+peut être ouvert sur la même machine, ce qui évite toute exposition Internet.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.98\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=16mm,
+  nodebox/.style={draw,rounded corners,fill=paulCream,minimum width=4.8cm,minimum height=1.2cm,align=center},
+  flow/.style={-{Latex[length=2mm]},thick,paulBrown}]
+  \node[nodebox] (caisse) {Caisses / Elyx\\SQL Server Express 2014};
+  \node[nodebox,right=of caisse] (server) {Serveur Windows\\Python + PrevisionPaul};
+  \node[nodebox,right=of server] (browser) {Navigateur local\\Dashboard Dash :8050};
+  \node[nodebox,below=of server] (disk) {Stockage local\\CSV, JSON, XLSX, PNG, logs};
+  \node[nodebox,above=of server] (task) {Planificateur de tâches\\exécution quotidienne 05 h 30};
+  \draw[flow] (caisse) -- node[above]{ODBC / lecture} (server);
+  \draw[flow] (task) -- (server);
+  \draw[flow] (server) -- (disk);
+  \draw[flow] (disk) -- (server);
+  \draw[flow] (server) -- node[above]{HTTP local} (browser);
+\end{tikzpicture}
+}
+\caption{Diagramme de déploiement matériel}
+\label{fig:deploiement}
+\end{figure}
+
+\section{Conclusion}
+
+La conception retenue combine des scénarios automatisés, des moteurs spécialisés
+et des contrats de données simples. La validation temporelle, la réconciliation,
+la séparation des commandes exceptionnelles et l'explosion récursive des recettes
+répondent directement aux contraintes identifiées. Le chapitre suivant montre
+comment cette conception a été implémentée, testée et présentée aux utilisateurs.
