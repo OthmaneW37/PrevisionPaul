@@ -1,0 +1,285 @@
+\chapitrepage{Spécification des besoins}
+
+\begin{objectifbox}
+Ce chapitre formalise les services attendus de \NomProjet. Nous identifions les
+acteurs, les besoins fonctionnels et non fonctionnels, puis nous décrivons les cas
+d'utilisation qui structurent l'application.
+\end{objectifbox}
+
+\section{Introduction}
+
+La spécification sert de contrat entre le problème métier et la réalisation
+technique. Elle évite de confondre une fonctionnalité utile avec un choix
+d'implémentation. Dans notre cas, le besoin primaire est d'aider une équipe à
+décider quoi produire et quoi commander. Les modèles, les fichiers et le framework
+web sont des moyens au service de cette décision.
+
+\section{Identification des acteurs}
+
+La solution est un outil interne mono-organisation. Elle distingue néanmoins
+plusieurs rôles selon les actions réalisées.
+
+\begin{table}[H]
+\centering
+\caption{Acteurs du système et responsabilités}
+\label{tab:acteurs}
+\begin{tabularx}{\textwidth}{p{3.5cm}YY}
+\toprule
+\textbf{Acteur} & \textbf{Responsabilité principale} & \textbf{Interactions} \\
+\midrule
+Responsable de production & Préparer les quantités quotidiennes et contrôler les références sensibles. & Consulter le plan du jour et de la semaine, filtrer, exporter, appliquer une correction. \\
+Gestionnaire / responsable & Piloter le plan mensuel, les achats, les coûts et les alertes. & Consulter les KPI, le MRP, les marges, les validations et les exports. \\
+Chef / référent recettes & Fiabiliser les nomenclatures et les quantités de matières. & Valider ou corriger les recettes, compléter les prix et contrôler la couverture. \\
+Administrateur technique & Maintenir les sources et l'exécution automatisée. & Importer les ventes, lancer le pipeline, surveiller les journaux et mettre à jour le code. \\
+Système de caisse Elyx & Fournir les ventes réelles clôturées. & Exposer les lignes de tickets via SQL Server ou des exports fichiers. \\
+Planificateur Windows & Exécuter la chaîne sans intervention humaine. & Lancer l'export SQL, la prévision journalière et la prévision mensuelle à 05 h 30. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Spécification des besoins fonctionnels}
+
+\subsection{Gestion et préparation des données}
+
+Le système doit permettre de :
+
+\begin{itemize}
+  \item importer les ventes journalières depuis les exports historiques ou la
+  base SQL de la caisse ;
+  \item normaliser les dates, codes, produits, familles, quantités et chiffres
+  d'affaires ;
+  \item supprimer les lignes de sous-total et éviter les doubles comptes ;
+  \item fusionner les ventes SQL récentes avec l'historique sans perdre les dates
+  antérieures ;
+  \item refuser une mise à jour vide ou manifestement aberrante ;
+  \item signaler la date de fraîcheur des dernières ventes.
+\end{itemize}
+
+\subsection{Prévision mensuelle}
+
+Le moteur mensuel doit :
+
+\begin{itemize}
+  \item agréger l'historique par mois et compléter les mois récents depuis la
+  source journalière ;
+  \item calculer plusieurs prévisions par produit : ARIMA, Croston, ETS,
+  ensembles, moyenne, moyenne mobile, naïf saisonnier, Theta et modèle global de
+  gradient boosting ;
+  \item sélectionner le modèle le plus performant pour chaque produit à partir
+  d'un benchmark hors échantillon ;
+  \item réconcilier la somme des prévisions produits avec une prévision agrégée ;
+  \item appliquer les fêtes, événements, matchs et commandes clients ;
+  \item produire une fourchette basse et une quantité recommandée selon le niveau
+  de service ;
+  \item générer un plan mensuel, des synthèses par famille et des fichiers de
+  validation.
+\end{itemize}
+
+\subsection{Prévision journalière}
+
+Le moteur journalier doit :
+
+\begin{itemize}
+  \item produire un horizon glissant de 62 jours par produit ;
+  \item combiner un niveau récent avec une ancre annuelle ;
+  \item apprendre les poids des jours de semaine ;
+  \item détecter les ruptures de niveau récentes et adapter le poids de
+  l'information la plus fraîche ;
+  \item appliquer les multiplicateurs de fête, de match et d'événement sans les
+  empiler de manière excessive ;
+  \item neutraliser les pics assimilables à une commande exceptionnelle dans la
+  série d'apprentissage ;
+  \item ajouter les commandes futures connues aux dates correspondantes ;
+  \item calculer une fiabilité sur une validation glissante de 28 jours ;
+  \item autoriser une correction manuelle par facteur ou quantité fixe.
+\end{itemize}
+
+\subsection{Planification des matières et des coûts}
+
+À partir des quantités prévues, le système doit :
+
+\begin{itemize}
+  \item associer chaque produit à une recette exacte ou, à défaut, à une recette
+  estimée explicitement signalée ;
+  \item reconnaître les alias de matières et homogénéiser les unités ;
+  \item éclater récursivement les produits semi-finis en matières premières de
+  base ;
+  \item exclure du bon de commande les familles revendues et les ressources non
+  achetées, par exemple l'eau du réseau ;
+  \item calculer les quantités mensuelles par ingrédient et par département ;
+  \item estimer le budget d'achat et le food-cost lorsque les prix sont connus ;
+  \item classer les recettes manquantes selon leur poids dans les achats afin de
+  prioriser le travail du chef.
+\end{itemize}
+
+\subsection{Pilotage par le tableau de bord}
+
+L'interface, construite avec les composants de mise en page Dash~\cite{dashDocs},
+doit regrouper cinq espaces : Accueil, Production, Événements et
+commandes, Assistant, Analyse. Elle doit proposer des indicateurs synthétiques,
+des filtres, des tableaux paginés, des courbes, des alertes et des exports Excel.
+Une carte de navigation depuis l'accueil doit conduire directement à la vue
+demandée. Un bouton unique doit pouvoir recalculer les prévisions journalières et
+mensuelles après une modification.
+
+\subsection{Assistant local}
+
+L'assistant doit répondre à des questions structurées sur la production d'un
+jour, la prévision d'un produit, son historique, les matières premières, les
+événements et la fiabilité. Les réponses doivent être déterministes et provenir
+des fichiers locaux. Aucun appel à un modèle externe ou à une API réseau ne doit
+être effectué.
+
+\section{Spécification des besoins non fonctionnels}
+
+\begin{table}[H]
+\centering
+\caption{Besoins non fonctionnels}
+\label{tab:non-fonctionnels}
+\begin{tabularx}{\textwidth}{p{3.4cm}Yp{4.2cm}}
+\toprule
+\textbf{Qualité} & \textbf{Exigence} & \textbf{Critère de vérification} \\
+\midrule
+Confidentialité & Les ventes et recettes restent sur le poste ou le serveur de l'entreprise. & Assistant sans dépendance réseau ; aucune donnée métier suivie dans Git. \\
+Fiabilité & Une source SQL vide ou aberrante ne doit pas détruire l'historique. & Contrôles défensifs avant fusion et écriture. \\
+Exactitude & La performance doit être mesurée sur des périodes postérieures aux données d'entraînement. & Backtest annuel et validation walk-forward. \\
+Traçabilité & Les modèles, recettes, prix et ajustements doivent être identifiables. & Fichiers JSON de configuration et exports détaillés. \\
+Utilisabilité & Un utilisateur non technique doit atteindre la bonne vue et comprendre l'indicateur. & Navigation guidée, aides contextuelles et libellés métier. \\
+Maintenabilité & Les responsabilités doivent être séparées par modules. & Modules dédiés aux données, modèles, fêtes, MRP, coûts et reporting. \\
+Portabilité & L'application doit fonctionner sur l'environnement Windows existant. & Lanceurs double-clic, chemins contrôlés, tâche planifiée Windows. \\
+Performance & Le recalcul doit rester compatible avec une utilisation quotidienne. & Cache des lectures coûteuses et calcul nocturne automatisé. \\
+Testabilité & Les règles critiques doivent être vérifiables automatiquement. & Suite Pytest ; 86 tests réussis sur la version auditée. \\
+Résilience & Une dépendance optionnelle absente ne doit pas bloquer tout le pipeline. & Replis prévus pour Prophet et Holt--Winters. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Présentation des cas d'utilisation}
+
+\subsection{Diagramme global}
+
+La figure~\ref{fig:cas-utilisation} représente les interactions majeures selon la
+notation UML~\cite{omgUML}. Les
+acteurs humains sont séparés des systèmes techniques afin de rendre visible
+l'automatisation nocturne.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  actor/.style={draw,rounded corners,fill=paulCream,minimum width=3.2cm,minimum height=0.9cm,align=center,font=\small\bfseries},
+  usecase/.style={draw,ellipse,fill=white,minimum width=4.6cm,minimum height=1.0cm,align=center,font=\small},
+  link/.style={-{Latex[length=2mm]},thin,paulBrown}]
+
+\node[actor] (prod) at (0,4.8) {Responsable\\de production};
+\node[actor] (gest) at (0,2.4) {Gestionnaire};
+\node[actor] (chef) at (0,0) {Chef / référent\\recettes};
+\node[actor] (admin) at (0,-2.4) {Administrateur\\technique};
+
+\node[usecase] (jour) at (6,5.2) {Consulter et exporter\\la production du jour};
+\node[usecase] (corr) at (6,3.8) {Corriger une prévision};
+\node[usecase] (mois) at (6,2.4) {Consulter le plan mensuel};
+\node[usecase] (mrp) at (6,1.0) {Calculer les besoins matières};
+\node[usecase] (rec) at (6,-0.4) {Valider les recettes et prix};
+\node[usecase] (evt) at (6,-1.8) {Gérer événements et commandes};
+\node[usecase] (run) at (6,-3.2) {Relancer le calcul complet};
+
+\node[actor] (sql) at (12,2.7) {Système de caisse\\Elyx / SQL Server};
+\node[actor] (task) at (12,0.2) {Planificateur\\Windows};
+\node[actor] (assistant) at (12,-2.3) {Utilisateur de\\l'assistant local};
+
+\draw[link] (prod) -- (jour);
+\draw[link] (prod) -- (corr);
+\draw[link] (gest) -- (mois);
+\draw[link] (gest) -- (mrp);
+\draw[link] (gest) -- (evt);
+\draw[link] (chef) -- (rec);
+\draw[link] (admin) -- (run);
+\draw[link] (sql) -- (run);
+\draw[link] (task) -- (run);
+\draw[link] (assistant) -- (jour);
+\draw[link] (assistant) -- (mrp);
+
+\node[draw,dashed,rounded corners,fit=(jour)(run),inner sep=7mm,label={[font=\bfseries]above:Système PrevisionPaul}] {};
+\end{tikzpicture}}
+\caption{Diagramme global des cas d'utilisation}
+\label{fig:cas-utilisation}
+\end{figure}
+
+\subsection{Cas d'utilisation : consulter la production du jour}
+
+\begin{table}[H]
+\centering
+\caption{Description du cas d'utilisation « Consulter la production du jour »}
+\label{tab:uc-production-jour}
+\begin{tabularx}{\textwidth}{p{3.7cm}Y}
+\toprule
+\textbf{Rubrique} & \textbf{Description} \\
+\midrule
+Acteur principal & Responsable de production. \\
+Objectif & Obtenir les quantités recommandées par produit pour une date donnée. \\
+Préconditions & Les ventes ont été importées et les prévisions journalières ont été générées. \\
+Déclencheur & L'acteur ouvre Production, puis l'onglet Du jour. \\
+Scénario nominal & 1) Le système propose la date courante ; 2) l'acteur choisit une date et éventuellement une catégorie ; 3) le système affiche les quantités, la prévision de base et la fiabilité ; 4) l'acteur filtre ou exporte le tableau Excel. \\
+Scénario alternatif & Si les données sont anciennes, une alerte de fraîcheur est affichée. Si une valeur paraît incohérente, l'acteur applique un facteur ou une quantité fixe puis régénère les prévisions. \\
+Postconditions & Le plan est consulté ou exporté ; une correction éventuelle est enregistrée dans la configuration locale. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Cas d'utilisation : relancer la chaîne complète}
+
+\begin{table}[H]
+\centering
+\caption{Description du cas d'utilisation « Relancer le calcul complet »}
+\label{tab:uc-relancer}
+\begin{tabularx}{\textwidth}{p{3.7cm}Y}
+\toprule
+\textbf{Rubrique} & \textbf{Description} \\
+\midrule
+Acteurs & Administrateur technique ou planificateur Windows. \\
+Objectif & Mettre à jour les ventes, les prévisions, le plan de production et le MRP. \\
+Préconditions & Python et les dépendances sont installés ; les dossiers de données sont accessibles. \\
+Scénario nominal & 1) Extraire les ventes SQL clôturées ; 2) fusionner l'historique ; 3) générer la prévision journalière et le suivi ; 4) exécuter le pipeline mensuel ; 5) écrire les exports datés ; 6) journaliser l'exécution. \\
+Scénario alternatif & Si SQL ne renvoie aucune donnée fiable, conserver le CSV existant et poursuivre avec le dernier historique valide. En cas d'échec d'une étape critique, écrire l'erreur dans le journal et interrompre les étapes dépendantes. \\
+Postconditions & Les fichiers d'export sont actualisés et le dashboard lit le dossier daté le plus récent. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Cas d'utilisation : fiabiliser une recette}
+
+Le chef reçoit un classeur organisé par catégorie. Chaque produit présente sa
+recette exacte lorsqu'elle existe, sinon une estimation et sa provenance. Le chef
+corrige les composants, valide la ligne, puis l'administrateur importe les
+recettes confirmées. Le système conserve une sauvegarde horodatée, met à jour la
+provenance et régénère le MRP. Ce cas d'utilisation est essentiel : une bonne
+prévision de produits finis ne suffit pas si la nomenclature matière est
+inexacte.
+
+\section{Règles métier structurantes}
+
+Les règles suivantes sont traitées comme des invariants du système :
+
+\begin{enumerate}
+  \item les ajustements positifs et négatifs liés au calendrier sont combinés en
+  conservant le plus fort de chaque sens, afin d'éviter un empilement irréaliste ;
+  \item une commande client future connue est ajoutée telle quelle, mais les pics
+  comparables du passé sont neutralisés pendant l'apprentissage ;
+  \item une quantité recommandée ne peut pas être inférieure à zéro ;
+  \item l'étiquette de fiabilité dépend d'une erreur hors échantillon ou signale
+  explicitement un historique court ;
+  \item une recette estimée ne doit jamais être présentée comme exacte ;
+  \item le dashboard lit le dossier d'export daté le plus récent, tandis que les
+  fichiers journaliers de suivi restent à la racine du dossier \texttt{exports} ;
+  \item aucune question de l'assistant ne peut déclencher une communication
+  réseau.
+\end{enumerate}
+
+\section{Conclusion}
+
+Les besoins définis dans ce chapitre couvrent la chaîne complète, depuis la
+collecte des ventes jusqu'à l'usage quotidien des recommandations. Ils imposent
+une séparation claire entre données, prévision, ajustements métier, calcul matière
+et restitution. Le chapitre suivant présente la conception retenue pour satisfaire
+ces exigences et les échanges entre ses composants.

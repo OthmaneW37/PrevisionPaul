@@ -1,0 +1,423 @@
+\chapitrepage{Réalisation du système}
+
+\begin{objectifbox}
+Ce chapitre présente l'environnement de développement, la réalisation de la
+chaîne de traitement, les interfaces principales, le déploiement, la stratégie de
+test et les résultats observés sur la version synchronisée du projet.
+\end{objectifbox}
+
+\section{Introduction}
+
+La réalisation a été conduite par incréments. Nous avons d'abord sécurisé la
+lecture et la consolidation des ventes, puis construit les prévisions mensuelles
+et journalières. Les règles de fêtes, de commandes et de nomenclatures ont ensuite
+été intégrées avant la création du dashboard et de l'automatisation. Chaque étape
+a produit des fichiers contrôlables indépendamment de l'interface.
+
+\section{Environnement de développement}
+
+\subsection{Environnement matériel}
+
+Le développement et la validation finale ont été réalisés sur la configuration du
+tableau~\ref{tab:env-materiel}. Le calcul reste principalement contraint par le
+nombre de produits et les backtests répétés ; il ne nécessite pas de carte
+graphique dédiée.
+
+\begin{table}[H]
+\centering
+\caption{Configuration matérielle de développement et de validation}
+\label{tab:env-materiel}
+\begin{tabularx}{0.86\textwidth}{>{\bfseries}p{4.2cm}Y}
+\toprule
+Composant & Configuration \\
+\midrule
+Processeur & AMD Ryzen 5 7500F, 6 cœurs \\
+Mémoire vive & 15,6 Go \\
+Stockage principal & SSD, capacité d'environ 930 Go \\
+Architecture & 64 bits \\
+Système d'exploitation & Windows 11 Professionnel \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Le serveur cible documenté est un environnement Windows relié à SQL Server
+Express 2014 et au progiciel Elyx Resto 11.15.5. La connexion utilise
+l'authentification Windows ; aucun mot de passe n'est inscrit dans le code.
+
+\subsection{Environnement logiciel}
+
+\begin{table}[H]
+\centering
+\caption{Environnement logiciel utilisé lors de la validation}
+\label{tab:env-logiciel}
+\begin{tabularx}{\textwidth}{p{3.4cm}p{2.4cm}Y}
+\toprule
+\textbf{Outil} & \textbf{Version} & \textbf{Usage} \\
+\midrule
+Python & 3.11.9 & Langage principal et orchestration. \\
+pandas & 2.2.2 & Lecture, nettoyage, agrégation et transformation tabulaire. \\
+NumPy & 1.26.4 & Calcul numérique et manipulation des vecteurs de prévision. \\
+statsmodels & 0.14.6 & Holt--Winters, Theta et ARIMA. \\
+scikit-learn & 1.8.0 & Modèle global de gradient boosting. \\
+Dash & 4.3.0 & Application web et callbacks interactifs. \\
+Plotly & 6.7.0 & Graphiques interactifs. \\
+openpyxl & 3.1.5 & Lecture et génération de classeurs Excel. \\
+PyODBC & dépendance requise & Connexion au SQL Server Elyx. \\
+Pytest & dépendance de test & Exécution de la suite automatisée. \\
+Git / GitHub & dépôt distant & Versionnement et déploiement du code. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Réalisation de la chaîne de données}
+
+\subsection{Import historique}
+
+Le script de conversion reconstruit le fichier
+\texttt{ventes\_journalieres.csv} à partir des exports bruts. Il traite l'encodage
+hérité, associe les familles, retire les sous-totaux et agrège les lignes par date
+et produit. Les colonnes finales sont volontairement stables : Date, Code,
+Produit, Famille, Quantité et CA TTC. Cette stabilité permet aux moteurs et au
+dashboard de partager la même source de vérité journalière.
+
+\subsection{Export SQL défensif}
+
+Le module \texttt{exporter\_ventes\_sql.py} recherche les tables
+\texttt{IMPUTATION\_<site>}, sélectionne les journées clôturées et agrège les
+lignes de ticket. Les ventes SQL remplacent les lignes de même date dans le CSV,
+mais laissent les autres dates intactes. Avant toute écriture, le module vérifie
+la présence des colonnes attendues, le volume retourné et la cohérence des totaux.
+Si les caisses ne sont pas encore raccordées ou si la requête ne renvoie rien,
+l'opération devient un no-op : le fichier historique n'est pas écrasé.
+
+\subsection{Configuration externalisée}
+
+Les éléments métier sont stockés dans \texttt{data/*.json}. Cette décision évite
+de mélanger les paramètres et le code. La version auditée contient notamment 40
+périodes de fêtes marocaines, 848 choix de modèle, 270 entrées de recettes dans le
+référentiel principal et 86 groupes d'alias matières. Le dashboard reconnaît 261
+recettes comme exactes et correctement rattachées parmi 1\,109 produits prévus ;
+les autres sont signalées comme estimées ou manquantes.
+
+\section{Réalisation des prévisions}
+
+\subsection{Pipeline mensuel}
+
+Le point d'entrée \texttt{main.py} appelle \texttt{pipeline.run()}. Le pipeline
+crée un dossier d'export daté, charge et nettoie les données, calcule les
+prévisions agrégées, boucle sur les produits, applique le modèle global si
+nécessaire, réconcilie les niveaux, ajoute les ajustements métier, estime
+l'incertitude et calcule les besoins matières.
+
+Le pseudo-code suivant résume l'enchaînement sans exposer les détails de chaque
+modèle :
+
+\begin{lstlisting}[style=paulpython,caption={Pseudo-code du pipeline mensuel},label={lst:pipeline}]
+donnees = charger_et_nettoyer_sources()
+historique = agreger_par_mois_et_par_produit(donnees)
+
+for produit in produits:
+    modele = modele_selectionne(produit)
+    prevision[produit] = prevoir(modele, historique[produit])
+
+prevision = appliquer_modele_global_si_retenu(prevision)
+prevision = reconcilier_sur_agregat(prevision)
+prevision = appliquer_fetes_evenements_commandes(prevision)
+plan = ajouter_intervalles_et_marge_de_securite(prevision)
+besoins = exploser_nomenclatures(plan)
+exporter(plan, besoins, validations, graphiques)
+\end{lstlisting}
+
+\subsection{Prévision journalière et suivi}
+
+Le module journalier génère un enregistrement pour chaque date et produit sur 62
+jours. Il conserve la prévision centrale, la quantité recommandée, la fiabilité et
+la part provenant d'une commande client. Le module \texttt{suivi.py} reconstruit
+ensuite ce que le système aurait prévu au cours des 28 derniers jours en
+n'utilisant, à chaque origine, que les observations disponibles auparavant. Cette
+méthode empêche toute fuite d'information future.
+
+\subsection{Gestion de l'incertitude}
+
+La recommandation ne se limite pas à la prévision moyenne. Pour un niveau de
+service cible de 95\,\%, un quantile de la loi normale transforme l'écart-type de
+l'erreur en marge. Lorsque l'historique est insuffisant, une marge prudente par
+défaut est appliquée et l'étiquette de fiabilité reste explicite. La quantité
+recommandée répond ainsi à un objectif anti-rupture, tandis que la prévision
+centrale reste disponible pour l'analyse.
+
+\section{Réalisation du calcul matières}
+
+\subsection{Recettes et produits semi-finis}
+
+Les recettes sont représentées par des dictionnaires produit--ingrédient. Une
+recette peut référencer un produit semi-fini, par exemple une pâte, une crème ou
+une sauce. La fonction d'explosion parcourt ces références récursivement, protège
+contre les cycles et additionne les matières identiques après résolution des
+alias. Les derniers changements du dépôt renforcent cette logique pour les
+préparations maison de cuisine et les libellés contenant un code ou une marque
+interne.
+
+Le workflow de validation par le chef comprend deux scripts. Le premier génère un
+classeur par catégorie avec la recette disponible et sa provenance ; le second
+importe uniquement les lignes explicitement validées, sauvegarde l'ancien JSON et
+met à jour la provenance. Cette séparation réduit le risque qu'une estimation soit
+promue automatiquement en donnée exacte.
+
+\subsection{Exports opérationnels}
+
+Le pipeline produit notamment :
+
+\begin{itemize}
+  \item \texttt{plan\_production\_securise.csv}, avec prévision, fourchette,
+  recommandation, fiabilité et modèle ;
+  \item \texttt{besoins\_ingredients\_planifies.csv}, avec date, ingrédient et
+  quantité requise ;
+  \item \texttt{previsions\_PAUL\_2026.xlsx}, classeur de synthèse ;
+  \item \texttt{bon\_de\_commande\_gerant.txt}, support directement lisible ;
+  \item les validations mensuelles de quantité et de chiffre d'affaires ;
+  \item des graphiques statiques pour le responsable et le contrôle terrain.
+\end{itemize}
+
+\section{Principales interfaces graphiques}
+
+\subsection{Accueil et synthèse}
+
+La page d'accueil, présentée à la figure~\ref{fig:ui-accueil}, fournit une lecture
+immédiate : quantité à produire, chiffre d'affaires prévu, prochaine fête, part des
+prévisions fiables et écart prévu-réel. Elle signale également la fraîcheur des
+ventes. Cette alerte est essentielle dans la capture : les données sont arrêtées
+au 28 juin 2026, soit quarante jours avant la date d'affichage.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{paul_accueil.png}
+\caption{Page d'accueil du tableau de bord PrevisionPaul}
+\label{fig:ui-accueil}
+\end{figure}
+
+\subsection{Production journalière}
+
+La vue de production du jour affiche les quantités recommandées et permet de
+choisir une date, une catégorie et un export Excel. Trois indicateurs résument le
+volume du jour, le nombre de références à préparer et l'horizon disponible. La
+prévision centrale et la fiabilité restent accessibles dans le tableau afin que
+l'utilisateur distingue le besoin moyen de la marge de sécurité.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{paul_production_jour.png}
+\caption{Vue de production journalière}
+\label{fig:ui-production}
+\end{figure}
+
+\subsection{Matières premières}
+
+La vue MRP présente 236 ingrédients distincts pour le mois calculé. Elle regroupe
+les solides, les liquides, le budget d'achat estimé, le food-cost plancher et la
+couverture des prix. Le tableau détaillé permet de contrôler les matières les plus
+importantes. Une seconde section classe les recettes à saisir en priorité selon le
+poids matière qu'elles représentent.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{paul_matieres_premieres.png}
+\caption{Vue des besoins en matières premières}
+\label{fig:ui-mrp}
+\end{figure}
+
+\subsection{Événements et commandes}
+
+L'utilisateur peut déclarer un match, un jour férié, un concert ou un autre
+événement. Pour un match, l'impact est appris à partir des occurrences passées et
+pondéré par l'importance de la rencontre ; pour les autres types, un impact manuel
+peut être saisi. L'onglet voisin enregistre les commandes clients datées.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{paul_evenements.png}
+\caption{Gestion des événements et des matchs}
+\label{fig:ui-evenements}
+\end{figure}
+
+\subsection{Assistant déterministe local}
+
+La figure~\ref{fig:ui-assistant} montre l'assistant guidé. L'utilisateur choisit
+un type de question et renseigne uniquement les champs nécessaires. La fonction
+correspondante lit les fichiers réels et renvoie un texte et, si besoin, un
+tableau. Ce choix privilégie la confidentialité et l'absence d'hallucination par
+rapport à une conversation libre avec un service externe.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{paul_assistant_local.png}
+\caption{Assistant local fondé sur les données calculées}
+\label{fig:ui-assistant}
+\end{figure}
+
+\subsection{Analyse du chiffre d'affaires et des marges}
+
+L'espace Analyse rassemble l'historique, les prévisions de chiffre d'affaires et
+les marges matière par produit. Les cartes indiquent notamment un chiffre
+d'affaires historique HT de 51,53 millions MAD sur les données consolidées par le
+dashboard, un mois moyen de 873\,399 MAD et les prévisions 2026. Les marges restent
+qualifiées d'indicatives tant que toutes les recettes et tous les prix ne sont pas
+validés.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{paul_analyse_marges.png}
+\caption{Analyse du chiffre d'affaires et des marges matière}
+\label{fig:ui-analyse}
+\end{figure}
+
+\section{Automatisation et déploiement}
+
+Le dépôt fournit un lanceur double-clic pour l'utilisateur final et un script
+d'installation de raccourci avec l'icône PAUL. En production, le code est prévu
+dans \texttt{C:\textbackslash PrevisionPaul}, hors des dossiers personnels. Une
+tâche Windows nommée « PrevisionPaul - MAJ quotidienne » exécute le script
+\texttt{mise\_a\_jour\_quotidienne.py} à 05 h 30. Les étapes et erreurs sont
+écrites dans un fichier \texttt{logs/auto\_AAAAMMJJ.log}.
+
+Le code est synchronisé par Git, tandis que les ventes, recettes et prix sensibles
+restent exclus du dépôt public. Cette séparation simplifie les mises à jour : un
+\texttt{git pull} actualise l'application sans déplacer les données locales.
+
+\section{Tests et validation}
+
+\subsection{Stratégie de test}
+
+La suite Pytest couvre les règles les plus sensibles : préparation des données,
+prévisions, fêtes, commandes, incertitude, nomenclatures, coûts, couverture,
+assistant et exports. Un test spécifique vérifie que l'assistant ne dépend
+d'aucun service réseau. D'autres tests contrôlent l'ajout exact d'une commande,
+la neutralisation des pics, les unités de matière et l'absence de régression dans
+les tables générées.
+
+La commande \texttt{python -m pytest tests -q} a été exécutée après la
+synchronisation GitHub. Les 86 tests ont réussi en 7,85 secondes sur la machine de
+validation.
+
+\begin{resultatbox}[title=Résultat de la recette technique,fonttitle=\bfseries]
+\centering
+\Large\textbf{86 tests réussis sur 86}\par
+\normalsize Aucun échec détecté sur le commit \texttt{be291f7}.
+\end{resultatbox}
+
+\subsection{Validation mensuelle}
+
+La validation walk-forward disponible rejoue douze mois, de juin 2025 à mai 2026.
+Elle confirme que Holt--Winters est le meilleur modèle agrégé parmi les cinq
+séries de référence du fichier de validation : WAPE de 8,25\,\% sur les quantités
+et 8,28\,\% sur le chiffre d'affaires. Cette mesure ne remplace pas la sélection
+par produit ; elle contrôle la cohérence du niveau global.
+
+\begin{table}[H]
+\centering
+\caption{Résultats de la validation mensuelle agrégée}
+\label{tab:validation-mensuelle}
+\begin{tabularx}{\textwidth}{Y C{3cm} C{3cm}}
+\toprule
+\textbf{Modèle} & \textbf{WAPE quantité} & \textbf{WAPE CA} \\
+\midrule
+Moyenne mobile & 9,36\,\% & 11,09\,\% \\
+Tendance & 15,18\,\% & 19,03\,\% \\
+Naïf saisonnier & 19,31\,\% & 22,92\,\% \\
+Décomposition saisonnière & 16,22\,\% & 20,49\,\% \\
+\textbf{Holt--Winters} & \textbf{8,25\,\%} & \textbf{8,28\,\%} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{dashboard_validation_mensuelle.png}
+\caption{Graphique de validation mensuelle généré par le pipeline}
+\label{fig:validation-mensuelle}
+\end{figure}
+
+\subsection{Suivi journalier}
+
+Le suivi du 1\textsuperscript{er} au 28 juin 2026 contient 30\,905 comparaisons
+produit-date. À l'échelle de toutes les lignes, le WAPE atteint 43,47\,\%, ce qui
+reflète la difficulté de la longue traîne et des petits volumes. Après agrégation
+par jour, le WAPE est de 18,62\,\% et le biais de $-18,12\,\%$, indiquant une
+sous-prévision globale sur cette fenêtre. Ce diagnostic est affiché plutôt que
+masqué : il justifie la marge de sécurité et la nécessité de mettre à jour les
+ventes, arrêtées au 28 juin dans la capture du 7 août.
+
+\begin{table}[H]
+\centering
+\caption{Indicateurs observés dans les exports du 7 juillet 2026}
+\label{tab:resultats-observes}
+\begin{tabularx}{\textwidth}{p{5.4cm}Y}
+\toprule
+\textbf{Indicateur} & \textbf{Valeur} \\
+\midrule
+Produits dans le plan mensuel & 1\,164 \\
+Prévision mensuelle centrale totale & 95\,898 unités \\
+Quantité mensuelle recommandée totale & 128\,239 unités \\
+Part des lignes mensuelles classées fiables & 44,8\,\% \\
+Horizon de prévision journalière & 62 jours \\
+Produits dans l'export journalier & 1\,109 \\
+Ingrédients distincts calculés & 236 \\
+Budget matière estimé affiché & 200\,430 MAD \\
+Couverture des prix affichée & 94\,\% \\
+Tests automatisés & 86 / 86 réussis \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{attentionbox}
+Les résultats chiffrés correspondent aux fichiers disponibles au 7 juillet 2026.
+Ils ne constituent pas une prévision actualisée au 7 août 2026, car les ventes
+réelles s'arrêtent au 28 juin. Le dashboard détecte et affiche ce retard. Une
+mise à jour SQL ou fichier, suivie d'un recalcul, est nécessaire avant toute
+décision opérationnelle réelle.
+\end{attentionbox}
+
+\section{Difficultés rencontrées et solutions}
+
+\subsection{Hétérogénéité et qualité des données}
+
+Les exports historiques combinent plusieurs années, sites, encodages et formats.
+Les sous-totaux pouvaient doubler les volumes. Nous avons stabilisé un schéma CSV,
+introduit des contrôles de seuil, consolidé les mois récents et conservé un
+référentiel de nettoyage. Le système refuse désormais de remplacer un historique
+valide par une extraction vide.
+
+\subsection{Longue traîne et changements de régime}
+
+Plusieurs centaines de produits ont un historique court ou intermittent. Les
+modèles classiques deviennent instables et une erreur relative sur un volume
+presque nul perd son sens. Nous avons combiné Croston, des replis simples, un GBM
+global et des étiquettes spécifiques. Pour les références qui changent rapidement
+de niveau, le modèle journalier augmente le poids de la fenêtre récente tout en
+bornant la réaction à un pic isolé.
+
+\subsection{Recettes incomplètes et unités}
+
+La qualité du MRP dépend directement des nomenclatures. Des variations de casse,
+des codes internes et des unités incohérentes empêchaient certains rapprochements.
+Nous avons ajouté des alias, une normalisation des unités, une gestion récursive
+des PSF et un workflow de validation par le chef. Les derniers correctifs du dépôt
+traitent notamment une erreur d'échelle kilogramme/gramme et plusieurs familles de
+préparations cuisine.
+
+\subsection{Lisibilité de l'interface}
+
+Le dashboard regroupe de nombreux usages dans un seul fichier d'application. Une
+navigation plate aurait créé trop d'onglets. Nous avons donc organisé les vues en
+cinq groupes, ajouté des sous-onglets thématiques, des aides contextuelles et des
+cartes de navigation. Les lectures coûteuses sont mises en cache puis invalidées
+après un recalcul.
+
+\section{Conclusion}
+
+La réalisation concrétise l'architecture décrite au chapitre précédent : sources
+contrôlées, moteurs séparés, règles métier explicites, exports traçables et
+interface orientée décision. Les résultats mensuels sont satisfaisants au niveau
+agrégé et la suite automatisée valide les comportements critiques. Le suivi
+journalier met toutefois en évidence un biais récent et rappelle qu'un outil de
+prévision doit être surveillé et recalibré en continu.
