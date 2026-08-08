@@ -71,6 +71,7 @@
   \renewcommand{\footrulewidth}{0.6pt}}
 
 \usepackage{titlesec}
+\usepackage{tocloft}
 \titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{0.8em}{}
 \titleformat{\subsection}{\normalfont\large\bfseries}{\thesubsection}{0.8em}{}
 \titleformat{\subsubsection}{\normalfont\normalsize\bfseries}{\thesubsubsection}{0.8em}{}
@@ -281,9 +282,13 @@ time series, production planning, MRP, bill of materials, Dash, walk-forward
 validation, bakery.
 
 \clearpage
-\setcounter{tocdepth}{1}
+\setcounter{tocdepth}{2}
 \begingroup
-\small
+\setlength{\cftbeforechapskip}{2pt}
+\setlength{\cftbeforesecskip}{0pt}
+\setlength{\cftbeforesubsecskip}{0pt}
+\fontsize{9.2}{10.4}\selectfont
+\setstretch{0.92}
 \setlength{\parskip}{0pt}
 \tableofcontents
 \endgroup

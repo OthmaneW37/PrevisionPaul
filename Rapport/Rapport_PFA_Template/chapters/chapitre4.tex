@@ -191,20 +191,13 @@ Le pipeline produit notamment :
 La page d'accueil fournit une lecture immédiate : quantité à produire, nombre de
 produits concernés, prochaine fête, part des prévisions fiables et écart
 prévu-réel. Elle signale également la fraîcheur des ventes. Les indicateurs
-financiers existent dans l'application interne, mais leurs montants sont masqués
-dans la version publique du rapport.
+financiers existent dans l'application interne ; leurs montants sont recouverts
+par un aplat noir dans la figure~\ref{fig:ui-accueil}.
 
 \begin{figure}[H]
 \centering
-\begin{minipage}{0.9\textwidth}
-\begin{resultatbox}[title=Capture anonymisée -- confidentialité financière,fonttitle=\bfseries]
-La capture d'accueil n'est pas reproduite dans le rapport public, car elle affiche
-des montants de chiffre d'affaires. Les quantités à produire, le nombre de
-produits, la date de fraîcheur et les indicateurs de fiabilité restent décrits dans
-les tableaux et résultats non confidentiels.
-\end{resultatbox}
-\end{minipage}
-\caption{Page d'accueil -- indicateurs financiers masqués}
+\includegraphics[width=\textwidth]{paul_accueil.png}
+\caption{Page d'accueil -- montant de chiffre d'affaires censuré}
 \label{fig:ui-accueil}
 \end{figure}
 
@@ -235,15 +228,8 @@ confidentiels.
 
 \begin{figure}[H]
 \centering
-\begin{minipage}{0.9\textwidth}
-\begin{resultatbox}[title=Capture anonymisée -- coûts confidentiels,fonttitle=\bfseries]
-La capture MRP complète est réservée à l'usage interne. Le rapport conserve les
-résultats non financiers : 236 ingrédients distincts, quantités requises et
-couverture fonctionnelle des recettes. Les budgets, prix et food-cost ne sont pas
-publiés.
-\end{resultatbox}
-\end{minipage}
-\caption{Vue MRP -- montants financiers masqués}
+\includegraphics[width=\textwidth]{paul_matieres_premieres.png}
+\caption{Vue MRP -- budget et ratios financiers censurés}
 \label{fig:ui-mrp}
 \end{figure}
 
@@ -286,15 +272,8 @@ sont pas validés.
 
 \begin{figure}[H]
 \centering
-\begin{minipage}{0.9\textwidth}
-\begin{resultatbox}[title=Capture non publiée -- données financières,fonttitle=\bfseries]
-L'interface d'analyse est opérationnelle, mais sa capture contient des montants de
-chiffre d'affaires, de coûts et de marges. Elle est donc exclue de la version
-publique ; seuls son rôle fonctionnel et les métriques techniques de validation
-sont présentés.
-\end{resultatbox}
-\end{minipage}
-\caption{Analyse financière -- données confidentielles censurées}
+\includegraphics[width=\textwidth]{paul_analyse_marges.png}
+\caption{Analyse financière -- montants confidentiels censurés}
 \label{fig:ui-analyse}
 \end{figure}
 
@@ -364,15 +343,8 @@ Décomposition saisonnière & 16,22\,\% & 20,49\,\% \\
 
 \begin{figure}[H]
 \centering
-\begin{minipage}{0.9\textwidth}
-\begin{resultatbox}[title=Visualisation anonymisée,fonttitle=\bfseries]
-Le graphique d'origine superpose les séries de quantités et de chiffre d'affaires.
-Il n'est pas reproduit afin de ne pas exposer les niveaux financiers. Les erreurs
-WAPE, qui mesurent la performance des modèles sans révéler les montants, restent
-présentées dans le tableau~\ref{tab:validation-mensuelle}.
-\end{resultatbox}
-\end{minipage}
-\caption{Validation mensuelle -- niveaux financiers non publiés}
+\includegraphics[width=0.92\textwidth]{dashboard_validation_mensuelle.png}
+\caption{Validation mensuelle -- panneau de chiffre d'affaires censuré}
 \label{fig:validation-mensuelle}
 \end{figure}
 
